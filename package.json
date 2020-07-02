@@ -1,0 +1,38 @@
+{
+  "name": "mds-cloud-serverless-functions",
+  "version": "1.0.0",
+  "description": "API based abstraction layer for various open source functions as a service",
+  "scripts": {
+    "server": "./bin/server",
+    "test": "NODE_ENV=test mocha",
+    "test-cov": "NODE_ENV=test nyc mocha",
+    "lint": "eslint 'src/**'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MadDonkeySoftware/mdsCloudServerlessFunctions.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MadDonkeySoftware/mdsCloudServerlessFunctions/issues"
+  },
+  "homepage": "https://github.com/MadDonkeySoftware/mdsCloudServerlessFunctions#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "bunyan": "^1.8.12",
+    "express": "^4.17.1",
+    "lodash": "^4.17.15"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-import": "^2.20.2",
+    "mocha": "^7.1.1",
+    "nyc": "^15.0.1",
+    "sinon": "^9.0.2",
+    "sinon-chai": "^3.5.0",
+    "supertest": "^4.0.2"
+  }
+}
