@@ -1,9 +1,37 @@
 #!/usr/bin/env node
+
+const _ = require('lodash');
+const mds = require('@maddonkeysoftware/mds-cloud-sdk-node');
+
 const src = require('../src');
 const globals = require('../src/globals');
+const runtimes = require('../src/runtimes');
 
 const logger = globals.getLogger();
-const port = 8888;
-const app = src.buildApp();
+const specifiedRuntimes = _.get(process.env, ['MDS_FN_RUNTIMES'], '').split(',');
+if (runtimes.reduce(specifiedRuntimes).length === 0) {
+  logger.fatal({
+    validRuntimes: runtimes.SUPPORTED_RUNTIMES,
+    specifiedRuntimes,
+    environmentSetting: _.get(process.env, ['MDS_FN_RUNTIMES'], ''),
+  }, 'Missing valid value(s) for environment variable MDS_FN_RUNTIMES');
+} else {
+  const conf = {
+    nsUrl: process.env.MDS_FN_NS_URL,
+    qsUrl: process.env.MDS_FN_QS_URL,
+    fsUrl: process.env.MDS_FN_FS_URL,
+    identityUrl: process.env.MDS_IDENTITY_URL,
+    account: process.env.MDS_FN_SYS_ACCOUNT,
+    userId: process.env.MDS_FN_SYS_USER,
+    password: process.env.MDS_FN_SYS_PASSWORD,
+  };
+  mds.initialize(conf);
+  logger.info({
+    config: _.omit(conf, 'password'),
+    specifiedRuntimes,
+  }, 'Application initialized');
+  const port = process.env.APP_PORT || 8888;
+  const app = src.buildApp();
 
-app.listen(port, () => logger.info(`Example app listening on port ${port}!`));
+  app.listen(port, () => logger.info(`Example app listening on port ${port}!`));
+}

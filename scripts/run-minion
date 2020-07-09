@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+
+# -v /tmp:/tmp:rw \
+docker run -it \
+    --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -e MDS_FN_MONGO_URL="mongodb://192.168.5.90:27017" \
+    -e MDS_FN_MONGO_DB_NAME="mdsCloudServerlessFunctions" \
+    -e MDS_FN_FNPROJECT_URL="http://192.168.5.90:8080" \
+    -e MDS_FN_QS_URL="http://192.168.5.90:8081" \
+    -e MDS_FN_FS_URL="http://192.168.5.90:8083" \
+    -e MDS_FN_NS_URL="http://192.168.5.90:8085" \
+    -e MDS_FN_NOTIFICATION_TOPIC="mdsCloudServerlessFunctions-FnProject" \
+    -e MDS_FN_WORK_QUEUE="mdsCloudServerlessFunctions-FnProjectWork" \
+    192.168.5.90:5000/frito/mds-fnproject-minion:latest

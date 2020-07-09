@@ -4,6 +4,9 @@ const url = require('url');
 const http = require('http');
 const https = require('https');
 
+let retryHandle;
+const retryMessages = [];
+
 const nameFromLevel = {
   10: 'TRACE',
   20: 'DEBUG',
@@ -14,6 +17,8 @@ const nameFromLevel = {
 };
 
 const postMessage = function postMessage(settings, message) {
+  if (!message) return Promise.resolve();
+
   const data = JSON.stringify(message);
   const parsedUrl = url.parse(settings.loggingEndpoint);
   const options = {
@@ -38,8 +43,11 @@ const postMessage = function postMessage(settings, message) {
       resolve(resp);
     });
     req.on('error', (err) => {
-      const msg = util.inspect(err, false, null, true);
-      process.stderr.write(`${msg}\n`);
+      /* istanbul ignore next */
+      if (err.code !== 'ECONNREFUSED') {
+        const msg = util.inspect(err, false, null, true);
+        process.stderr.write(`${msg}\n`);
+      }
       reject(err);
     });
     req.write(data);
@@ -54,12 +62,37 @@ const postMessage = function postMessage(settings, message) {
 const log = (settings, level, message, metadata) => {
   const meta = _.merge({}, settings.metadata, metadata);
   const timestamp = metadata.time;
-  return postMessage(settings,
-    {
-      '@timestamp': timestamp,
-      logLevel: level,
-      message,
-      ...meta,
+  const packagedMessage = {
+    '@timestamp': timestamp,
+    logLevel: level,
+    message,
+    ...meta,
+  };
+
+  /* istanbul ignore if */
+  if (retryMessages.length > 0) {
+    retryMessages.push(packagedMessage);
+  }
+  return postMessage(settings, packagedMessage)
+    .catch((err) => {
+      /* istanbul ignore if */
+      if (err.code === 'ECONNREFUSED') {
+        retryMessages.unshift(packagedMessage);
+        if (!retryHandle) {
+          retryHandle = setInterval(() => {
+            const msg = retryMessages.pop();
+            postMessage(settings, msg)
+              .then(() => {
+                if (retryMessages.length === 0) {
+                  clearInterval(retryHandle);
+                }
+              })
+              .catch(() => retryMessages.unshift(msg));
+          }, 500);
+        }
+      } else {
+        throw err;
+      }
     });
 };
 
@@ -98,6 +131,8 @@ const write = (settings, record) => {
  * @param {Object} [options.metadata] The base set of metadata to send with every log message.
  * @param {Function} [options.error] Callback for when writing an error out occurs.
  * @param {Function} [options.customFormatter] method to custom format message.
+ * @param {object} [options.messageRetry] object containing all details around message retrying
+ * @param {object} [options.messageRetry.maxAttempts] Times to attempt delivering the message.
  * @returns {Object}
  */
 const createLoggerStream = (options) => {
