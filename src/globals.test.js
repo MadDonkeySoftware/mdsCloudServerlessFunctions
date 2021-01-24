@@ -59,4 +59,19 @@ describe('globals', () => {
       });
     });
   });
+
+  describe('generateRandomString', () => {
+    it('gives empty string when length not specified', () => {
+      chai.expect(globals.generateRandomString()).to.be.equal('');
+    });
+
+    it('gives empty string when length less than 1', () => {
+      chai.expect(globals.generateRandomString(0)).to.be.equal('');
+    });
+
+    it('gives string of appropriate length', () => {
+      chai.expect(globals.generateRandomString(4).length).to.equal(4);
+      chai.expect(globals.generateRandomString(11).length).to.equal(11);
+    });
+  });
 });
