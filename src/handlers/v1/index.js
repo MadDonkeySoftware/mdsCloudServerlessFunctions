@@ -246,14 +246,17 @@ const uploadCodeToFunction = async (request, response) => {
     const qsClient = mds.getQueueServiceClient();
     const nsClient = mds.getNotificationServiceClient();
 
-    const localFilePath = `${os.tmpdir()}${path.sep}${files.sourceArchive.name}`;
+    // We need to make sure the file name is unique in case a single archive is used for multiple
+    // function code uploads.
+    const distinctFile = `${globals.generateRandomString(8)}-${files.sourceArchive.name}`;
+    const localFilePath = `${os.tmpdir()}${path.sep}${distinctFile}`;
     await helpers.saveRequestFile(files.sourceArchive, localFilePath);
     await fsClient.uploadFile(WORK_CONTAINER, localFilePath);
     await new Promise((res) => { fs.unlink(localFilePath, () => { res(); }); });
     await qsClient.enqueueMessage(WORK_QUEUE, {
       functionId: resourceId,
       sourceContainer: WORK_CONTAINER,
-      sourcePath: files.sourceArchive.name,
+      sourcePath: distinctFile,
     });
     const eventId = uuid.v4();
     await nsClient.emit(NOTIFICATION_WORK, { queue: WORK_QUEUE, eventId });

@@ -1,4 +1,5 @@
 const bunyan = require('bunyan');
+const crypto = require('crypto');
 const bunyanLogstashHttp = require('./bunyan-logstash-http');
 
 const buildLogStreams = () => {
@@ -40,8 +41,22 @@ const getLogger = () => logger;
 
 const delay = (timeout) => new Promise((resolve) => setTimeout(resolve, timeout));
 
+const generateRandomString = (length) => {
+  if (!length || length < 1) {
+    return '';
+  }
+
+  // When converting bytes to hex you get two characters for every byte. So
+  // we divide the requested length in half rounding up to save a bit of
+  // memory / processing.
+  const l = Math.floor((length / 2.0) + 0.5);
+  const str = crypto.randomBytes(l).toString('hex');
+  return str.substring(0, length);
+};
+
 module.exports = {
   buildLogStreams,
   getLogger,
   delay,
+  generateRandomString,
 };
