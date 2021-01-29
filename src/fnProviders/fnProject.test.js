@@ -11,6 +11,7 @@ const fnProvider = require('./index');
 describe('src/fnProviders', () => {
   afterEach(() => {
     sinon.restore();
+    nock.cleanAll();
   });
 
   describe('Node provider', () => {
@@ -86,6 +87,22 @@ describe('src/fnProviders', () => {
       it('when post succeeds responds with data object', () => {
         // Arrange
         api.post('/v2/apps', { name: 'testApp' }).reply(200, { id: 1 });
+
+        // Act
+        return provider.createApp('testApp').then((id) => {
+          // Assert
+          chai.expect(id).to.be.equal(1);
+        });
+      });
+
+      it('when post fails with conflict return id from app list', () => {
+        // Arrange
+        api.post('/v2/apps', { name: 'testApp' }).reply(409, { message: 'conflict' });
+        api.get('/v2/apps').reply(200, {
+          items: [
+            { id: 1, name: 'testApp' },
+          ],
+        });
 
         // Act
         return provider.createApp('testApp').then((id) => {
