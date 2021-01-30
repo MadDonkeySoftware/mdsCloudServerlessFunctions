@@ -106,6 +106,12 @@ const getApps = async () => {
   return data;
 };
 
+const findAppIdByName = async (name) => {
+  const apps = await getApps();
+  const item = _.find(apps, (e) => e.name === name);
+  return _.get(item, ['id']);
+};
+
 const createApp = async (name) => {
   const logger = globals.getLogger();
   const body = { name };
@@ -113,14 +119,11 @@ const createApp = async (name) => {
   if (resp.status === 200) {
     return resp.data.id;
   }
+  if (resp.status === 409) {
+    return findAppIdByName(name);
+  }
   logger.warn({ status: resp.status, response: resp.data }, 'Failed to create application in fnProject.');
   return undefined;
-};
-
-const findAppIdByName = async (name) => {
-  const apps = await getApps();
-  const item = _.find(apps, (e) => e.name === name);
-  return _.get(item, ['id']);
 };
 
 const deleteFunction = async (funcId) => {
