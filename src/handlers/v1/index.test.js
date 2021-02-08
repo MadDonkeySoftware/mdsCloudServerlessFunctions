@@ -58,6 +58,7 @@ describe('src/handlers/v1/index', () => {
           property: 'instance',
           message: 'requires property "name"',
           name: 'required',
+          path: [],
           schema: '/CreateRequest',
           stack: 'instance requires property "name"',
         }]);
@@ -650,6 +651,7 @@ describe('src/handlers/v1/index', () => {
               instance: {},
               message: 'requires property "entryPoint"',
               name: 'required',
+              path: [],
               property: 'instance',
               schema: '/UploadCodeRequest',
               stack: 'instance requires property "entryPoint"',
@@ -659,6 +661,7 @@ describe('src/handlers/v1/index', () => {
               instance: {},
               message: 'requires property "runtime"',
               name: 'required',
+              path: [],
               property: 'instance',
               schema: '/UploadCodeRequest',
               stack: 'instance requires property "runtime"',
