@@ -1,0 +1,13 @@
+{
+    "version": "1.0",
+    "runtimeMap": {
+        "node": "mds",
+        "python": "mds"
+    },
+    "providers": {
+        "mds": {
+            "type": "mdsCloud",
+            "baseUrl": "http://127.0.0.1:8888"
+        }
+    }
+}

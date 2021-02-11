@@ -3,19 +3,13 @@ const supertest = require('supertest');
 const sinon = require('sinon');
 const chai = require('chai');
 const jwt = require('jsonwebtoken');
-const mds = require('@maddonkeysoftware/mds-cloud-sdk-node');
-const axios = require('axios');
 
 const src = require('../..');
 const repo = require('../../repo');
 const fnProvider = require('../../fnProviders');
-const fnProjectProvider = require('../../fnProviders/fnProject');
 const handlerHelpers = require('../handler-helpers');
-const helpers = require('../../helpers');
-const globals = require('../../globals');
-const simpleThrottle = require('../../simpleThrottle');
 
-describe('src/handlers/v1/index', () => {
+describe(__filename, () => {
   const app = src.buildApp();
 
   beforeEach(() => {
@@ -33,7 +27,7 @@ describe('src/handlers/v1/index', () => {
     sinon.restore();
   });
 
-  describe('create', () => {
+  describe('createFunction', () => {
     it('Fails when missing required headers', () => supertest(app)
       .post('/v1/create')
       .send({})
@@ -45,7 +39,7 @@ describe('src/handlers/v1/index', () => {
 
     it('Fails when missing name in body', () => supertest(app)
       .post('/v1/create')
-      .send({ })
+      .send({})
       .set('token', 'testToken')
       .expect('content-type', /application\/json/)
       .expect(400)
@@ -54,7 +48,7 @@ describe('src/handlers/v1/index', () => {
 
         chai.expect(body).to.eql([{
           argument: 'name',
-          instance: { },
+          instance: {},
           property: 'instance',
           message: 'requires property "name"',
           name: 'required',
@@ -64,25 +58,20 @@ describe('src/handlers/v1/index', () => {
         }]);
       }));
 
-    describe('headers and body are proper', () => {
-      it('Succeeds when no existing record', () => {
+    describe('when body and headers are proper', () => {
+      it('succeeds when function does not already exist', () => {
         // Arrange
-        const fakeDatabase = {
+        const functionsCol = {
+          findOne: sinon.stub().resolves(null),
+          insertOne: sinon.stub().resolves(),
+        };
+        const database = {
+          getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
           close: sinon.stub(),
-          getCollection: sinon.stub(),
         };
-        const fakeCollection = {
-          insertOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection.returns(fakeCollection);
-        fakeCollection.insertOne.resolves();
-        fakeCollection.findOne.resolves(null);
-        sinon.stub(fnProjectProvider, 'createApp').resolves({ id: 'appId' });
-        sinon.stub(fnProjectProvider, 'findAppIdByName').resolves('some-app-id');
+        sinon.stub(repo, 'getDatabase').resolves(database);
 
-        // Act / Assert
+        // Act & Assert
         return supertest(app)
           .post('/v1/create')
           .send({ name: 'test' })
@@ -95,27 +84,24 @@ describe('src/handlers/v1/index', () => {
             chai.expect(body.orid).to.exist;
             chai.expect(body.orid).to.match(/^orid:1::::1:sf:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g);
 
-            chai.expect(fakeCollection.insertOne.callCount).to.equal(1);
-            chai.expect(fakeDatabase.close.callCount).to.equal(1);
+            chai.expect(functionsCol.insertOne.callCount).to.equal(1);
+            chai.expect(database.close.callCount).to.equal(1);
           });
       });
 
-      it('Fails when existing record', () => {
+      it('fails when function already exist', () => {
         // Arrange
-        const fakeDatabase = {
+        const functionsCol = {
+          findOne: sinon.stub().resolves({ id: 'existing-id' }),
+          insertOne: sinon.stub().resolves(),
+        };
+        const database = {
+          getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
           close: sinon.stub(),
-          getCollection: sinon.stub(),
         };
-        const fakeCollection = {
-          insertOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection.returns(fakeCollection);
-        fakeCollection.insertOne.resolves();
-        fakeCollection.findOne.resolves({});
+        sinon.stub(repo, 'getDatabase').resolves(database);
 
-        // Act / Assert
+        // Act & Assert
         return supertest(app)
           .post('/v1/create')
           .send({ name: 'test' })
@@ -125,36 +111,35 @@ describe('src/handlers/v1/index', () => {
           .then((resp) => {
             const body = JSON.parse(resp.text);
 
-            chai.expect(body).to.eql({});
+            chai.expect(body).to.deep.equal({ id: 'existing-id' });
 
-            chai.expect(fakeCollection.insertOne.callCount).to.equal(0);
-            chai.expect(fakeDatabase.close.callCount).to.equal(1);
+            chai.expect(functionsCol.insertOne.callCount).to.equal(0);
+            chai.expect(database.close.callCount).to.equal(1);
           });
       });
     });
   });
 
-  describe('list', () => {
-    it('Returns list of items for account when exists', () => {
+  describe('listFunctions', () => {
+    it('returns list of items for the account', () => {
       // Arrange
-      const fakeDatabase = {
+      const functionsCol = {
+        find: sinon.stub().returns({
+          toArray: () => Promise.resolve([{
+            id: 'id1',
+            name: 'test1',
+            created: new Date().toISOString(),
+          }]),
+        }),
+        insertOne: sinon.stub().resolves(),
+      };
+      const database = {
+        getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
         close: sinon.stub(),
-        getCollection: sinon.stub(),
       };
-      const fakeCollection = {
-        find: sinon.stub(),
-      };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection.returns(fakeCollection);
-      fakeCollection.find.returns({
-        toArray: () => Promise.resolve([{
-          id: 'id1',
-          name: 'test1',
-          created: 'abcde',
-        }]),
-      });
+      sinon.stub(repo, 'getDatabase').resolves(database);
 
-      // Act / Assert
+      // Act & Assert
       return supertest(app)
         .get('/v1/list')
         .set('token', 'testToken')
@@ -168,33 +153,30 @@ describe('src/handlers/v1/index', () => {
             orid: 'orid:1::::1:sf:id1',
           }]);
 
-          chai.expect(fakeCollection.find.callCount).to.equal(1);
-          chai.expect(fakeDatabase.close.callCount).to.equal(1);
+          chai.expect(functionsCol.find.callCount).to.equal(1);
+          chai.expect(database.close.callCount).to.equal(1);
         });
     });
   });
 
-  describe('delete', () => {
-    it('successfully removes function when exists', () => {
+  describe('deleteFunction', () => {
+    it('successfully removes function when it exists', () => {
       // Arrange
-      const fakeDatabase = {
-        close: sinon.stub(),
-        getCollection: sinon.stub(),
+      const functionsCol = {
+        deleteOne: sinon.stub().resolves(),
+        findOne: sinon.stub().resolves({ providerFuncId: '12345678' }),
       };
-      const fakeCollection = {
-        deleteOne: sinon.stub(),
-        findOne: sinon.stub(),
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub().returns(functionsCol),
       };
       const fakeProvider = {
         deleteFunction: sinon.stub().resolves(true),
       };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection.returns(fakeCollection);
-      fakeCollection.findOne.resolves({ funcId: '12345678' });
-      fakeCollection.deleteOne.resolves();
+      sinon.stub(repo, 'getDatabase').resolves(database);
       sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
 
-      // Act
+      // Act & Assert
       return supertest(app)
         .delete('/v1/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
         .set('token', 'testToken')
@@ -202,8 +184,8 @@ describe('src/handlers/v1/index', () => {
         .expect(204)
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
-          chai.expect(fakeCollection.deleteOne.callCount).to.equal(1);
-          chai.expect(fakeCollection.deleteOne.getCall(0).args).to.deep.equal([{
+          chai.expect(functionsCol.deleteOne.callCount).to.equal(1);
+          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([{
             accountId: '1',
             id: '12345678-1234-1234-1234-123456789ABC',
           }]);
@@ -211,30 +193,27 @@ describe('src/handlers/v1/index', () => {
           chai.expect(fakeProvider.deleteFunction.getCall(0).args).to.deep.equal([
             '12345678',
           ]);
-          chai.expect(fakeDatabase.close.callCount).to.equal(1);
+          chai.expect(database.close.callCount).to.equal(1);
         });
     });
 
-    it('fails when remove from function provider fails', () => {
+    it('fails when provider delete function fails', () => {
       // Arrange
-      const fakeDatabase = {
-        close: sinon.stub(),
-        getCollection: sinon.stub(),
+      const functionsCol = {
+        deleteOne: sinon.stub().resolves(),
+        findOne: sinon.stub().resolves({ providerFuncId: '12345678' }),
       };
-      const fakeCollection = {
-        deleteOne: sinon.stub(),
-        findOne: sinon.stub(),
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub().returns(functionsCol),
       };
       const fakeProvider = {
         deleteFunction: sinon.stub().resolves(false),
       };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection.returns(fakeCollection);
-      fakeCollection.findOne.resolves({ funcId: '12345678' });
-      fakeCollection.deleteOne.resolves();
+      sinon.stub(repo, 'getDatabase').resolves(database);
       sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
 
-      // Act
+      // Act & Assert
       return supertest(app)
         .delete('/v1/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
         .set('token', 'testToken')
@@ -242,32 +221,29 @@ describe('src/handlers/v1/index', () => {
         .expect(500)
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
-          chai.expect(fakeCollection.deleteOne.callCount).to.equal(0);
+          chai.expect(functionsCol.deleteOne.callCount).to.equal(0);
           chai.expect(fakeProvider.deleteFunction.callCount).to.equal(1);
           chai.expect(fakeProvider.deleteFunction.getCall(0).args).to.deep.equal([
             '12345678',
           ]);
-          chai.expect(fakeDatabase.close.callCount).to.equal(1);
+          chai.expect(database.close.callCount).to.equal(1);
         });
     });
 
     it('successfully removes function when no provider exists', () => {
       // Arrange
-      const fakeDatabase = {
+      const functionsCol = {
+        deleteOne: sinon.stub().resolves(),
+        findOne: sinon.stub().resolves({ providerFuncId: '12345678' }),
+      };
+      const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub(),
+        getCollection: sinon.stub().returns(functionsCol),
       };
-      const fakeCollection = {
-        deleteOne: sinon.stub(),
-        findOne: sinon.stub(),
-      };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection.returns(fakeCollection);
-      fakeCollection.findOne.resolves({ funcId: '12345678' });
-      fakeCollection.deleteOne.resolves();
-      sinon.stub(fnProvider, 'getProviderForRuntime').returns(undefined);
+      sinon.stub(repo, 'getDatabase').resolves(database);
+      sinon.stub(fnProvider, 'getProviderForRuntime').resolves(undefined);
 
-      // Act
+      // Act & Assert
       return supertest(app)
         .delete('/v1/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
         .set('token', 'testToken')
@@ -275,31 +251,29 @@ describe('src/handlers/v1/index', () => {
         .expect(204)
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
-          chai.expect(fakeCollection.deleteOne.callCount).to.equal(1);
-          chai.expect(fakeCollection.deleteOne.getCall(0).args).to.deep.equal([{
+          chai.expect(functionsCol.deleteOne.callCount).to.equal(1);
+          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([{
             accountId: '1',
             id: '12345678-1234-1234-1234-123456789ABC',
           }]);
-          chai.expect(fakeDatabase.close.callCount).to.equal(1);
+          chai.expect(database.close.callCount).to.equal(1);
         });
     });
 
-    it('returns not found when function does not exist in database', () => {
+    it('returns not found when function does not exist in the database', () => {
       // Arrange
-      const fakeDatabase = {
-        close: sinon.stub(),
-        getCollection: sinon.stub(),
-      };
-      const fakeCollection = {
+      const functionsCol = {
         deleteOne: sinon.stub(),
-        findOne: sinon.stub(),
+        findOne: sinon.stub().resolves(null),
       };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection.returns(fakeCollection);
-      fakeCollection.findOne.resolves();
-      sinon.stub(fnProvider, 'getProviderForRuntime');
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub().returns(functionsCol),
+      };
+      sinon.stub(repo, 'getDatabase').resolves(database);
+      sinon.stub(fnProvider, 'getProviderForRuntime').resolves(undefined);
 
-      // Act
+      // Act & Assert
       return supertest(app)
         .delete('/v1/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
         .set('token', 'testToken')
@@ -307,72 +281,33 @@ describe('src/handlers/v1/index', () => {
         .expect(404)
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
-          chai.expect(fakeCollection.deleteOne.callCount).to.equal(0);
-          chai.expect(fnProvider.getProviderForRuntime.callCount).to.equal(0);
-          chai.expect(fakeDatabase.close.callCount).to.equal(1);
+          chai.expect(functionsCol.deleteOne.callCount).to.equal(0);
+          chai.expect(database.close.callCount).to.equal(1);
         });
     });
   });
 
-  describe('upload code to function', () => {
-    describe('Successfully dispatches build and updates user upon success', () => {
-      it('App already exists in provider', () => {
+  describe('uploadCodeToFunction', () => {
+    describe('successfully builds code and updates user upon success', () => {
+      it('when app exists in provider', () => {
         // Arrange
         const fakeFile = Buffer.from('fake file data');
-        const fakeDatabase = {
+        const functionsCol = {
+          findOne: sinon.stub().resolves({ providerFuncId: '12345678' }),
+          updateOne: sinon.stub().resolves(),
+        };
+        const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub(),
+          getCollection: sinon.stub().returns(functionsCol),
         };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
+        const provider = {
+          // createFunction: sinon.stub().resolves({ }),
+          updateFunction: sinon.stub().resolves(true),
         };
-        const fakeProviderMetadataCollection = {
-          findOne: sinon.stub(),
-        };
-        const fakeProvider = {
-          NAME: 'fnProject',
-        };
+        sinon.stub(repo, 'getDatabase').resolves(database);
+        sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
 
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_WORK_CONTAINER')
-          .returns('/tmp/workContainer')
-          .withArgs('MDS_FN_WORK_QUEUE')
-          .returns('orid:1::::1:qs:workQueue')
-          .withArgs('MDS_FN_NOTIFICATION_TOPIC')
-          .returns('orid:1::::1:ns:workTopic')
-          .withArgs('MDS_FN_INVOKE_URL_TEMPLATE')
-          .returns('http://testUrl:1234/invoke/{funcId}');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection)
-          .withArgs('providerMetadata')
-          .returns(fakeProviderMetadataCollection);
-        fakeFunctionsCollection.findOne.resolves({ funcId: '12345678' });
-        fakeFunctionsCollection.updateOne.resolves();
-        fakeProviderMetadataCollection.findOne.resolves({ accountId: '1', fnProject: 'fnProjectId' });
-        sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
-        sinon.stub(mds, 'getFileServiceClient').returns({
-          uploadFile: sinon.stub().resolves(),
-        });
-        sinon.stub(mds, 'getQueueServiceClient').returns({
-          enqueueMessage: sinon.stub().resolves(),
-        });
-
-        let eventId;
-        sinon.stub(mds, 'getNotificationServiceClient').returns({
-          emit: sinon.stub().callsFake((topic, data) => {
-            eventId = data.eventId;
-            return Promise.resolve();
-          }),
-          on: (topic, cb) => globals.delay(1).then(() => cb({
-            message: { eventId, status: 'buildComplete' },
-          })),
-          close: sinon.stub(),
-        });
-
-        // Act
+        // Act & Assert
         return supertest(app)
           .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
           .set('token', 'testToken')
@@ -384,74 +319,33 @@ describe('src/handlers/v1/index', () => {
             const data = JSON.parse(resp.text);
             chai.expect(data).to.deep.equal({
               id: '12345678-1234-1234-1234-123456789ABC',
-              invokeUrl: 'http://testUrl:1234/invoke/12345678-1234-1234-1234-123456789ABC',
               orid: 'orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
               status: 'buildComplete',
             });
           });
       });
 
-      it('App does not exist in provider', () => {
+      it('when app does not exists in provider', () => {
         // Arrange
         const fakeFile = Buffer.from('fake file data');
-        const fakeDatabase = {
+        const functionsCol = {
+          findOne: sinon.stub().resolves({}),
+          updateOne: sinon.stub().resolves(),
+        };
+        const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub(),
+          getCollection: sinon.stub().returns(functionsCol),
         };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
+        const provider = {
+          createFunction: sinon.stub().resolves('12345678'),
+          updateFunction: sinon.stub().resolves(true),
         };
-        const fakeProviderMetadataCollection = {
-          findOne: sinon.stub(),
-          updateOne: sinon.stub(),
-        };
-        const fakeProvider = {
-          NAME: 'fnProject',
-          buildAppName: () => 'testAppName',
-          findAppIdByName: sinon.stub().resolves(),
-          createApp: sinon.stub().withArgs('testAppName').resolves('testAppId'),
-        };
+        sinon.stub(repo, 'getDatabase').resolves(database);
+        sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
+        const now = new Date();
+        sinon.useFakeTimers(now);
 
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_WORK_CONTAINER')
-          .returns('/tmp/workContainer')
-          .withArgs('MDS_FN_WORK_QUEUE')
-          .returns('orid:1::::1:qs:workQueue')
-          .withArgs('MDS_FN_NOTIFICATION_TOPIC')
-          .returns('orid:1::::1:ns:workTopic')
-          .withArgs('MDS_FN_INVOKE_URL_TEMPLATE')
-          .returns('http://testUrl:1234/invoke/{funcId}');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection)
-          .withArgs('providerMetadata')
-          .returns(fakeProviderMetadataCollection);
-        fakeFunctionsCollection.findOne.resolves({ funcId: '12345678' });
-        fakeFunctionsCollection.updateOne.resolves();
-        fakeProviderMetadataCollection.findOne.resolves();
-        sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
-        sinon.stub(mds, 'getFileServiceClient').returns({
-          uploadFile: sinon.stub().resolves(),
-        });
-        sinon.stub(mds, 'getQueueServiceClient').returns({
-          enqueueMessage: sinon.stub().resolves(),
-        });
-
-        let eventId;
-        sinon.stub(mds, 'getNotificationServiceClient').returns({
-          emit: sinon.stub().callsFake((topic, data) => {
-            eventId = data.eventId;
-            return Promise.resolve();
-          }),
-          on: (topic, cb) => globals.delay(1).then(() => cb({
-            message: { eventId, status: 'buildComplete' },
-          })),
-          close: sinon.stub(),
-        });
-
-        // Act
+        // Act & Assert
         return supertest(app)
           .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
           .set('token', 'testToken')
@@ -463,179 +357,31 @@ describe('src/handlers/v1/index', () => {
             const data = JSON.parse(resp.text);
             chai.expect(data).to.deep.equal({
               id: '12345678-1234-1234-1234-123456789ABC',
-              invokeUrl: 'http://testUrl:1234/invoke/12345678-1234-1234-1234-123456789ABC',
               orid: 'orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
               status: 'buildComplete',
             });
 
-            chai.expect(fakeProviderMetadataCollection.updateOne.callCount).to.equal(1);
-            chai.expect(fakeProviderMetadataCollection.updateOne.getCall(0).args).to.deep.equal([
-              { accountId: '1' },
-              { $set: { fnProject: 'testAppId' } },
-              { upsert: true },
+            chai.expect(functionsCol.updateOne.callCount).to.equal(1);
+            chai.expect(functionsCol.updateOne.getCall(0).args).to.deep.equal([
+              { id: '12345678-1234-1234-1234-123456789ABC' },
+              {
+                $set: {
+                  entryPoint: 'src/main:main',
+                  lastUpdate: now.toISOString(),
+                  providerFuncId: '12345678',
+                  runtime: 'node',
+                },
+              },
+              {
+                writeConcern: {
+                  j: true,
+                  w: 'majority',
+                  wtimeout: 30000,
+                },
+              },
             ]);
           });
       });
-
-      it('App does exist in provider but not DB', () => {
-        // Arrange
-        const fakeFile = Buffer.from('fake file data');
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-        const fakeProviderMetadataCollection = {
-          findOne: sinon.stub(),
-          updateOne: sinon.stub(),
-        };
-        const fakeProvider = {
-          NAME: 'fnProject',
-          buildAppName: () => 'testAppName',
-          findAppIdByName: sinon.stub().resolves('testAppId'),
-        };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_WORK_CONTAINER')
-          .returns('/tmp/workContainer')
-          .withArgs('MDS_FN_WORK_QUEUE')
-          .returns('orid:1::::1:qs:workQueue')
-          .withArgs('MDS_FN_NOTIFICATION_TOPIC')
-          .returns('orid:1::::1:ns:workTopic')
-          .withArgs('MDS_FN_INVOKE_URL_TEMPLATE')
-          .returns('http://testUrl:1234/invoke/{funcId}');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection)
-          .withArgs('providerMetadata')
-          .returns(fakeProviderMetadataCollection);
-        fakeFunctionsCollection.findOne.resolves({ funcId: '12345678' });
-        fakeFunctionsCollection.updateOne.resolves();
-        fakeProviderMetadataCollection.findOne.resolves();
-        sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
-        sinon.stub(mds, 'getFileServiceClient').returns({
-          uploadFile: sinon.stub().resolves(),
-        });
-        sinon.stub(mds, 'getQueueServiceClient').returns({
-          enqueueMessage: sinon.stub().resolves(),
-        });
-
-        let eventId;
-        sinon.stub(mds, 'getNotificationServiceClient').returns({
-          emit: sinon.stub().callsFake((topic, data) => {
-            eventId = data.eventId;
-            return Promise.resolve();
-          }),
-          on: (topic, cb) => globals.delay(1).then(() => cb({
-            message: { eventId, status: 'buildComplete' },
-          })),
-          close: sinon.stub(),
-        });
-
-        // Act
-        return supertest(app)
-          .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .field('entryPoint', 'src/main:main')
-          .field('runtime', 'node')
-          .attach('sourceArchive', fakeFile, 'testFile.zip')
-          .expect(201)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              id: '12345678-1234-1234-1234-123456789ABC',
-              invokeUrl: 'http://testUrl:1234/invoke/12345678-1234-1234-1234-123456789ABC',
-              orid: 'orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
-              status: 'buildComplete',
-            });
-
-            chai.expect(fakeProviderMetadataCollection.updateOne.callCount).to.equal(1);
-            chai.expect(fakeProviderMetadataCollection.updateOne.getCall(0).args).to.deep.equal([
-              { accountId: '1' },
-              { $set: { fnProject: 'testAppId' } },
-              { upsert: true },
-            ]);
-          });
-      });
-    });
-
-    it('Fails when attempting to create application in provider', () => {
-      // Arrange
-      const fakeFile = Buffer.from('fake file data');
-      const fakeDatabase = {
-        close: sinon.stub(),
-        getCollection: sinon.stub(),
-      };
-      const fakeFunctionsCollection = {
-        updateOne: sinon.stub(),
-        findOne: sinon.stub(),
-      };
-      const fakeProviderMetadataCollection = {
-        findOne: sinon.stub(),
-        updateOne: sinon.stub(),
-      };
-      const fakeProvider = {
-        NAME: 'fnProject',
-        buildAppName: () => 'testAppName',
-        findAppIdByName: sinon.stub().resolves(),
-        createApp: sinon.stub().withArgs('testAppName').resolves(),
-      };
-
-      sinon.stub(helpers, 'getEnvVar')
-        .withArgs('MDS_FN_WORK_CONTAINER')
-        .returns('/tmp/workContainer')
-        .withArgs('MDS_FN_WORK_QUEUE')
-        .returns('orid:1::::1:qs:workQueue')
-        .withArgs('MDS_FN_NOTIFICATION_TOPIC')
-        .returns('orid:1::::1:ns:workTopic');
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection
-        .withArgs('functions')
-        .returns(fakeFunctionsCollection)
-        .withArgs('providerMetadata')
-        .returns(fakeProviderMetadataCollection);
-      fakeFunctionsCollection.findOne.resolves({ funcId: '12345678' });
-      fakeFunctionsCollection.updateOne.resolves();
-      fakeProviderMetadataCollection.findOne.resolves();
-      sinon.stub(fnProvider, 'getProviderForRuntime').returns(fakeProvider);
-      sinon.stub(mds, 'getFileServiceClient').returns({
-        uploadFile: sinon.stub().resolves(),
-      });
-      sinon.stub(mds, 'getQueueServiceClient').returns({
-        enqueueMessage: sinon.stub().resolves(),
-      });
-
-      let eventId;
-      sinon.stub(mds, 'getNotificationServiceClient').returns({
-        emit: sinon.stub().callsFake((topic, data) => {
-          eventId = data.eventId;
-          return Promise.resolve();
-        }),
-        on: (topic, cb) => globals.delay(1).then(() => cb({
-          message: { eventId, status: 'buildComplete' },
-        })),
-        close: sinon.stub(),
-      });
-
-      // Act
-      return supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-        .set('token', 'testToken')
-        .field('entryPoint', 'src/main:main')
-        .field('runtime', 'node')
-        .attach('sourceArchive', fakeFile, 'testFile.zip')
-        .expect(500)
-        .then((resp) => {
-          const data = JSON.parse(resp.text);
-          chai.expect(data.message).to.equal('An internal error has occurred');
-          chai.expect(data.referenceNumber).to.exist;
-
-          chai.expect(fakeProviderMetadataCollection.updateOne.callCount).to.equal(0);
-        });
     });
 
     describe('validators', () => {
@@ -707,6 +453,39 @@ describe('src/handlers/v1/index', () => {
         }));
     });
 
+    it('fails when attempting to create application in provider fails', () => {
+      // Arrange
+      const fakeFile = Buffer.from('fake file data');
+      const functionsCol = {
+        findOne: sinon.stub().resolves({}),
+        updateOne: sinon.stub().resolves(),
+      };
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub().returns(functionsCol),
+      };
+      const provider = {
+        createFunction: sinon.stub().resolves(undefined),
+        updateFunction: sinon.stub().resolves(true),
+      };
+      sinon.stub(repo, 'getDatabase').resolves(database);
+      sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
+      const now = new Date();
+      sinon.useFakeTimers(now);
+
+      // Act & Assert
+      return supertest(app)
+        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+        .set('token', 'testToken')
+        .field('entryPoint', 'src/main:main')
+        .field('runtime', 'node')
+        .attach('sourceArchive', fakeFile, 'testFile.zip')
+        .expect(500)
+        .then((resp) => {
+          chai.expect(resp.text).to.equal('');
+        });
+    });
+
     it('Fails when function not found', () => {
       // Arrange
       const fakeFile = Buffer.from('fake file data');
@@ -716,13 +495,12 @@ describe('src/handlers/v1/index', () => {
       };
       const fakeFunctionsCollection = {
         updateOne: sinon.stub(),
-        findOne: sinon.stub(),
+        findOne: sinon.stub().resolves(),
       };
       sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
       fakeDatabase.getCollection
         .withArgs('functions')
         .returns(fakeFunctionsCollection);
-      fakeFunctionsCollection.findOne.resolves();
 
       // Act
       return supertest(app)
@@ -747,13 +525,12 @@ describe('src/handlers/v1/index', () => {
       };
       const fakeFunctionsCollection = {
         updateOne: sinon.stub(),
-        findOne: sinon.stub(),
+        findOne: sinon.stub().throws(new Error('test error')),
       };
       sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
       fakeDatabase.getCollection
         .withArgs('functions')
         .returns(fakeFunctionsCollection);
-      fakeFunctionsCollection.findOne.throws(new Error('test error'));
 
       // Act
       return supertest(app)
@@ -769,273 +546,107 @@ describe('src/handlers/v1/index', () => {
     });
   });
 
-  describe('invoke function', () => {
-    describe('Successfully invokes function in provider and returns function result', () => {
-      it('using the invoke throttle', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
+  describe('invokeFunction', () => {
+    it('Successfully invokes function in provider and returns function result w/o async', () => {
+      // Arrange
+      const functionsCol = {
+        updateOne: sinon.stub().resolves(),
+        findOne: sinon.stub().resolves({
+          providerFuncId: '12345678',
+        }),
+      };
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub()
           .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
-        });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
+          .returns(functionsCol),
+      };
+      const provider = {
+        invokeFunction: sinon.stub().resolves({
+          data: { result: true },
+        }),
+      };
+      sinon.stub(repo, 'getDatabase').resolves(database);
+      sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
 
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(200)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              result: true,
-            });
-            chai.expect(axios.post.callCount).to.equal(1);
-            chai.expect(axios.post.getCall(0).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(0).args[1]).to.deep.equal({
-              test: 'input',
-            });
+      // Act
+      return supertest(app)
+        .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+        .set('token', 'testToken')
+        .send({ test: 'input' })
+        .expect(200)
+        .then((resp) => {
+          const data = JSON.parse(resp.text);
+          chai.expect(data).to.deep.equal({
+            result: true,
           });
-      });
-
-      it('not using the invoke throttle', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
+          chai.expect(provider.invokeFunction.callCount).to.equal(1);
+          chai.expect(provider.invokeFunction.getCall(0).args).to.deep.equal([
+            '12345678',
+            { test: 'input' },
+          ]);
         });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
-
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(200)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              result: true,
-            });
-            chai.expect(axios.post.callCount).to.equal(1);
-            chai.expect(axios.post.getCall(0).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(0).args[1]).to.deep.equal({
-              test: 'input',
-            });
-          });
-      });
-
-      it('using async query parameter', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
-        });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
-
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC?async=true')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(202)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              message: 'Request accepted. Function should begin soon.',
-            });
-            chai.expect(axios.post.callCount).to.equal(1);
-            chai.expect(axios.post.getCall(0).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(0).args[1]).to.deep.equal({
-              test: 'input',
-            });
-          });
-      });
     });
 
-    describe('Retries function invoke', () => {
-      beforeEach(() => {
-        sinon.stub(globals, 'delay').resolves();
-      });
-
-      it('if first call returns 5XX', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
+    it('Successfully invokes function in provider and returns function result w/ async', () => {
+      // Arrange
+      const functionsCol = {
+        updateOne: sinon.stub().resolves(),
+        findOne: sinon.stub().resolves({
+          providerFuncId: '12345678',
+        }),
+      };
+      const database = {
+        close: sinon.stub(),
+        getCollection: sinon.stub()
           .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
-        });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post')
-          .onCall(0)
-          .resolves({ status: 500, data: { result: true } })
-          .onCall(1)
-          .resolves({ status: 200, data: { result: true } });
+          .returns(functionsCol),
+      };
+      const provider = {
+        invokeFunction: sinon.stub().resolves({
+          data: { result: true },
+        }),
+      };
+      sinon.stub(repo, 'getDatabase').resolves(database);
+      sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
 
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(200)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              result: true,
-            });
-            chai.expect(axios.post.callCount).to.equal(2);
-            chai.expect(axios.post.getCall(0).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(0).args[1]).to.deep.equal({
-              test: 'input',
-            });
-            chai.expect(axios.post.getCall(1).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(1).args[1]).to.deep.equal({
-              test: 'input',
-            });
+      // Act
+      return supertest(app)
+        .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC?async=true')
+        .set('token', 'testToken')
+        .send({ test: 'input' })
+        .expect(202)
+        .then((resp) => {
+          const data = JSON.parse(resp.text);
+          chai.expect(data).to.deep.equal({
+            message: 'Request accepted. Function should begin soon.',
           });
-      });
-
-      it('if first call throws exception', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
+          chai.expect(provider.invokeFunction.callCount).to.equal(1);
+          chai.expect(provider.invokeFunction.getCall(0).args).to.deep.equal([
+            '12345678',
+            { test: 'input' },
+          ]);
         });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post')
-          .onCall(0)
-          .throws(new Error('test error'))
-          .onCall(1)
-          .resolves({ status: 200, data: { result: true } });
-
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(200)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              result: true,
-            });
-            chai.expect(axios.post.callCount).to.equal(2);
-            chai.expect(axios.post.getCall(0).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(0).args[1]).to.deep.equal({
-              test: 'input',
-            });
-            chai.expect(axios.post.getCall(1).args[0]).to.equal('http://localhost:1234/12345678');
-            chai.expect(axios.post.getCall(1).args[1]).to.deep.equal({
-              test: 'input',
-            });
-          });
-      });
     });
 
     describe('Returns error when', () => {
-      it('Function does not exist', () => {
+      it('function does not exist', () => {
         // Arrange
-        const fakeDatabase = {
+        const functionsCol = {
+          updateOne: sinon.stub().resolves(),
+          findOne: sinon.stub().resolves(),
+        };
+        const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub(),
+          getCollection: sinon.stub()
+            .withArgs('functions')
+            .returns(functionsCol),
         };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
+        const provider = {
+          invokeFunction: sinon.stub(),
         };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves();
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
+        sinon.stub(repo, 'getDatabase').resolves(database);
+        sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
 
         // Act
         return supertest(app)
@@ -1049,77 +660,27 @@ describe('src/handlers/v1/index', () => {
               id: '12345678-1234-1234-1234-123456789ABC',
               message: 'Function not found.',
             });
-            chai.expect(axios.post.callCount).to.equal(0);
+            chai.expect(provider.invokeFunction.callCount).to.equal(0);
           });
       });
 
-      it('Too many function instances running', () => {
+      it('function does not have providerFuncId', () => {
         // Arrange
-        const fakeDatabase = {
+        const functionsCol = {
+          updateOne: sinon.stub().resolves(),
+          findOne: sinon.stub().resolves({}),
+        };
+        const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub(),
+          getCollection: sinon.stub()
+            .withArgs('functions')
+            .returns(functionsCol),
         };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
+        const provider = {
+          invokeFunction: sinon.stub(),
         };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-          invokeUrl: 'http://localhost:1234/12345678',
-        });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').rejects();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
-
-        // Act
-        return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-          .set('token', 'testToken')
-          .send({ test: 'input' })
-          .expect(429)
-          .then((resp) => {
-            const data = JSON.parse(resp.text);
-            chai.expect(data).to.deep.equal({
-              id: '12345678-1234-1234-1234-123456789ABC',
-              message: 'Too many requests',
-            });
-            chai.expect(axios.post.callCount).to.equal(0);
-          });
-      });
-
-      it('Function does not have code associated yet', () => {
-        // Arrange
-        const fakeDatabase = {
-          close: sinon.stub(),
-          getCollection: sinon.stub(),
-        };
-        const fakeFunctionsCollection = {
-          updateOne: sinon.stub(),
-          findOne: sinon.stub(),
-        };
-
-        sinon.stub(helpers, 'getEnvVar')
-          .withArgs('MDS_FN_USE_INVOKE_THROTTLE')
-          .returns('true');
-        sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-        fakeDatabase.getCollection
-          .withArgs('functions')
-          .returns(fakeFunctionsCollection);
-        fakeFunctionsCollection.findOne.resolves({
-          funcId: '12345678',
-        });
-        fakeFunctionsCollection.updateOne.resolves();
-        sinon.stub(simpleThrottle, 'acquire').resolves();
-        sinon.stub(simpleThrottle, 'release').resolves();
-        sinon.stub(axios, 'post').resolves({ status: 200, data: { result: true } });
+        sinon.stub(repo, 'getDatabase').resolves(database);
+        sinon.stub(fnProvider, 'getProviderForRuntime').resolves(provider);
 
         // Act
         return supertest(app)
@@ -1133,37 +694,35 @@ describe('src/handlers/v1/index', () => {
               id: '12345678-1234-1234-1234-123456789ABC',
               message: 'Function does not appear to have code associated yet. Please upload code then try again.',
             });
-            chai.expect(axios.post.callCount).to.equal(0);
+            chai.expect(provider.invokeFunction.callCount).to.equal(0);
           });
       });
     });
   });
 
-  describe('inspect function', () => {
+  describe('inspectFunction', () => {
     it('returns details about the function when found', () => {
       // Arrange
       const now = new Date().toISOString();
-      const fakeDatabase = {
+      const functionsCol = {
+        findOne: sinon.stub().resolves({
+          id: '12345678-1234-1234-1234-123456789ABC',
+          name: 'test function',
+          version: 3,
+          runtime: 'node',
+          entryPoint: 'src/one:main',
+          created: now,
+          lastUpdate: now,
+          lastInvoke: now,
+        }),
+      };
+      const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub(),
+        getCollection: sinon.stub()
+          .withArgs('functions')
+          .returns(functionsCol),
       };
-      const fakeFunctionsCollection = {
-        findOne: sinon.stub(),
-      };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection
-        .withArgs('functions')
-        .returns(fakeFunctionsCollection);
-      fakeFunctionsCollection.findOne.resolves({
-        id: '12345678-1234-1234-1234-123456789ABC',
-        name: 'test function',
-        version: 3,
-        runtime: 'node',
-        entryPoint: 'src/one:main',
-        created: now,
-        lastUpdate: now,
-        lastInvoke: now,
-      });
+      sinon.stub(repo, 'getDatabase').resolves(database);
 
       // Act
       return supertest(app)
@@ -1176,7 +735,6 @@ describe('src/handlers/v1/index', () => {
             id: '12345678-1234-1234-1234-123456789ABC',
             orid: 'orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
             name: 'test function',
-            version: '3',
             runtime: 'node',
             entryPoint: 'src/one:main',
             created: now,
@@ -1188,18 +746,16 @@ describe('src/handlers/v1/index', () => {
 
     it('returns not found when function does not exist', () => {
       // Arrange
-      const fakeDatabase = {
+      const functionsCol = {
+        findOne: sinon.stub().resolves(),
+      };
+      const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub(),
+        getCollection: sinon.stub()
+          .withArgs('functions')
+          .returns(functionsCol),
       };
-      const fakeFunctionsCollection = {
-        findOne: sinon.stub(),
-      };
-      sinon.stub(repo, 'getDatabase').resolves(fakeDatabase);
-      fakeDatabase.getCollection
-        .withArgs('functions')
-        .returns(fakeFunctionsCollection);
-      fakeFunctionsCollection.findOne.resolves();
+      sinon.stub(repo, 'getDatabase').resolves(database);
 
       // Act
       return supertest(app)

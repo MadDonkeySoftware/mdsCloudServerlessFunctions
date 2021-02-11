@@ -8,7 +8,7 @@ const globals = require('../globals');
 // const helpers = require('../helpers');
 const fnProvider = require('./index');
 
-describe('src/fnProviders', () => {
+describe.skip('src/fnProviders', () => {
   afterEach(() => {
     sinon.restore();
     nock.cleanAll();

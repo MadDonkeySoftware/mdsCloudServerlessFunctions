@@ -7,51 +7,59 @@ implemented this notice can be removed.
 // TODO: Move this into a lib that can be shared between mdsCloudServerlessFunctions
 //   and the various minions
 const _ = require('lodash');
-const fnProject = require('./fnProject');
 
-const mappedAttributes = [
-  'NAME',
-  'findAppIdByName',
-  'createApp',
-  'createFunction',
-  'updateFunction',
-  'deleteFunction',
-];
+const globals = require('../globals');
+const configLoader = require('../configLoader');
+const MdsCloudProvider = require('./mdsCloud');
 
-const buildAppName = ({ account }) => `mdsFn-${account}`;
+// const mappedAttributes = [
+//   'NAME',
+//   'createFunction',
+//   'updateFunction',
+//   'invokeFunction',
+//   'deleteFunction',
+// ];
 
-const mapProvider = (provider) => {
-  const obj = {
-    buildAppName,
-  };
-  _.map(mappedAttributes, (e) => { obj[e] = provider[e]; });
-  return obj;
-};
+// /* Required Methods:
+//  * Create Function
+//  * Build Function
+//  * Execute Function
+//  * Delete Function
+//  */
+
+// const mapProvider = (provider) => {
+//   const obj = {};
+//   _.map(mappedAttributes, (e) => { obj[e] = provider[e]; });
+//   return obj;
+// };
 
 /**
  * @typedef {object} Provider
  *
- * @property {function} hasApp
- * @property {function} createApp
- * @property {function} buildAppName
  * @property {function} createFunction
  * @property {function} updateFunction
+ * @property {function} invokeFunction
  * @property {function} deleteFunction
  */
 
 /**
  *
  * @param {string} runtime The runtime being used
- * @returns {Provider}
+ * @returns {Promise<Provider>}
  */
-const getProviderForRuntime = (runtime) => {
+const getProviderForRuntime = async (runtime) => {
   if (runtime === undefined) return undefined;
+  const providerConfig = await configLoader.getProviderConfigForRuntime(runtime);
+  const providerType = _.get(providerConfig, ['type'], '');
 
-  switch (runtime.toUpperCase()) {
-    case 'NODE':
-      return mapProvider(fnProject);
+  switch (providerType.toUpperCase()) {
+    case 'MDSCLOUD': {
+      const logger = globals.getLogger();
+      logger.debug({ providerConfig }, 'Initializing new mdsCloudProvider');
+      return new MdsCloudProvider(providerConfig.baseUrl);
+    }
     default:
-      throw new Error(`Runtime "${runtime}" not understood.`);
+      throw new Error(`Runtime "${runtime}" for provider "${providerType}" configured improperly or not understood.`);
   }
 };
 

@@ -1,4 +1,3 @@
-const bodyParser = require('body-parser');
 const express = require('express');
 const fileUpload = require('express-fileupload');
 
@@ -40,8 +39,8 @@ const buildApp = () => {
   /* istanbul ignore if */
   if (process.env.LOG_ALL_REQUESTS) app.use(requestLogger);
   app.use(commonResponseSetup);
-  app.use(bodyParser.json());
-  app.use(bodyParser.text());
+  app.use(express.json());
+  app.use(express.text());
   app.use(fileUpload(fileUploadOptions));
   configureRoutes(app);
   appShutdown.wire();
