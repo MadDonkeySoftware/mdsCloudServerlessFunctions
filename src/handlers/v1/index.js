@@ -1,13 +1,10 @@
 const _ = require('lodash');
 const express = require('express');
 const uuid = require('uuid');
-const mds = require('@maddonkeysoftware/mds-cloud-sdk-node');
 const orid = require('@maddonkeysoftware/orid-node');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const axios = require('axios');
-const stringTemplate = require('string-template');
 const VError = require('verror');
 
 const handlerHelpers = require('../handler-helpers');
@@ -17,7 +14,6 @@ const uploadCodeValidator = require('../../validators/uploadCode');
 const fnProvider = require('../../fnProviders');
 const globals = require('../../globals');
 const helpers = require('../../helpers');
-const simpleThrottle = require('../../simpleThrottle');
 
 const router = express.Router();
 const logger = globals.getLogger();
@@ -96,85 +92,36 @@ const listFunctions = (request, response) => {
   });
 };
 
-const deleteFunction = (request, response) => {
+const deleteFunction = async (request, response) => {
   const requestOrid = handlerHelpers.getOridFromRequest(request, 'orid');
   const { resourceId } = requestOrid;
   const accountId = requestOrid.custom3;
 
-  return repo.getDatabase().then((db) => {
+  const db = await repo.getDatabase();
+  try {
     const functionsCol = db.getCollection('functions');
-
-    return functionsCol.findOne({ id: resourceId, accountId }).then((dbFunc) => {
-      if (dbFunc) {
-        const provider = fnProvider.getProviderForRuntime(dbFunc.runtime);
-        if (provider) {
-          return provider.deleteFunction(dbFunc.funcId).then((deleted) => {
-            if (deleted) {
-              return functionsCol.deleteOne({ id: resourceId, accountId })
-                .then(() => handlerHelpers.sendResponse(response, 204));
-            }
-
-            logger.warn({ requestOrid }, 'Failed to delete function from provider');
-            return handlerHelpers.sendResponse(response, 500);
-          });
+    const dbFunc = await functionsCol.findOne({ id: resourceId, accountId });
+    if (dbFunc) {
+      const provider = await fnProvider.getProviderForRuntime(dbFunc.runtime);
+      if (provider) {
+        const deleted = await provider.deleteFunction(dbFunc.providerFuncId);
+        if (deleted) {
+          await functionsCol.deleteOne({ id: resourceId, accountId });
+          return handlerHelpers.sendResponse(response, 204);
         }
-
-        return functionsCol.deleteOne({ id: resourceId, accountId })
-          .then(() => handlerHelpers.sendResponse(response, 204));
+        logger.warn({ requestOrid }, 'Failed to delete function from provider');
+        return handlerHelpers.sendResponse(response, 500);
       }
-
-      return handlerHelpers.sendResponse(response, 404);
-    }).finally(() => db.close());
-  });
-};
-
-const ensureProviderAppForFunction = async (db, runtime, accountId) => {
-  const providerMetadataCol = db.getCollection('providerMetadata');
-  const provider = fnProvider.getProviderForRuntime(runtime);
-
-  const meta = await providerMetadataCol.findOne({ accountId });
-  let appId = _.get(meta, [provider.NAME]);
-  if (!appId) {
-    appId = await provider.findAppIdByName(provider.buildAppName({ account: accountId }));
-    if (!appId) {
-      appId = await provider.createApp(provider.buildAppName({ account: accountId }));
+      await functionsCol.deleteOne({ id: resourceId, accountId });
+      return handlerHelpers.sendResponse(response, 204);
     }
-
-    if (appId) {
-      const updateData = {};
-      updateData[provider.NAME] = appId;
-      await providerMetadataCol.updateOne(
-        { accountId },
-        { $set: updateData },
-        { upsert: true },
-      );
-
-      return { appId, name: provider.NAME };
-    }
-
-    logger.error({ providerName: provider.NAME, runtime, accountId }, 'Could not create provider application.');
-    return {};
+    return handlerHelpers.sendResponse(response, 404);
+  } finally {
+    db.close();
   }
-
-  return { appId, name: provider.NAME };
-};
-
-const buildInvokeUrlForFunction = (funcId) => {
-  const template = helpers.getEnvVar('MDS_FN_INVOKE_URL_TEMPLATE');
-  /* istanbul ignore else */
-  if (template) {
-    return stringTemplate(template, { funcId });
-  }
-
-  /* istanbul ignore next */
-  return undefined;
 };
 
 const uploadCodeToFunction = async (request, response) => {
-  const WORK_CONTAINER = helpers.getEnvVar('MDS_FN_WORK_CONTAINER');
-  const WORK_QUEUE = helpers.getEnvVar('MDS_FN_WORK_QUEUE');
-  const NOTIFICATION_WORK = helpers.getEnvVar('MDS_FN_NOTIFICATION_TOPIC');
-
   const {
     body,
     files,
@@ -182,6 +129,7 @@ const uploadCodeToFunction = async (request, response) => {
 
   const validationResult = uploadCodeValidator.validate(body);
   if (!validationResult.valid) {
+    logger.debug({ validationResult }, 'Update code request invalid');
     const respBody = JSON.stringify(validationResult.errors);
     return handlerHelpers.sendResponse(response, 400, respBody);
   }
@@ -213,28 +161,29 @@ const uploadCodeToFunction = async (request, response) => {
       return handlerHelpers.sendResponse(response, 404, respBody);
     }
 
-    const providerData = await ensureProviderAppForFunction(db, body.runtime, accountId);
+    // Ensure the provider has the function created
+    const provider = await fnProvider.getProviderForRuntime(body.runtime);
 
-    if (!providerData.appId) {
-      const logId = uuid.v4();
-      logger.warn({ logId }, 'Unable to create application as provider did not yield application id.');
-
-      const respBody = JSON.stringify({
-        message: 'An internal error has occurred',
-        referenceNumber: logId,
-      });
-      return handlerHelpers.sendResponse(response, 500, respBody);
+    let { providerFuncId } = findResult;
+    if (!providerFuncId) {
+      providerFuncId = await provider.createFunction(findResult.name, accountId);
+      if (!providerFuncId) {
+        logger.warn(
+          { accountId, resourceId },
+          'No provider function id returned when creating the function.',
+        );
+        return handlerHelpers.sendResponse(response, 500);
+      }
     }
 
     const updatePayload = {
       $set: {
+        providerFuncId,
         lastUpdate: new Date().toISOString(),
-        provider: providerData.name,
-        providerAppId: providerData.appId,
         runtime: body.runtime,
         entryPoint: body.entryPoint,
       },
-      $inc: { version: 1 },
+      // $inc: { version: 1 },
     };
 
     await functionsCol.updateOne(
@@ -242,54 +191,38 @@ const uploadCodeToFunction = async (request, response) => {
       updatePayload,
       options,
     );
-    const fsClient = mds.getFileServiceClient();
-    const qsClient = mds.getQueueServiceClient();
-    const nsClient = mds.getNotificationServiceClient();
 
     // We need to make sure the file name is unique in case a single archive is used for multiple
     // function code uploads.
+    // TODO: There has to be a way to do this without writing the file to disk.
     const distinctFile = `${globals.generateRandomString(8)}-${files.sourceArchive.name}`;
     const localFilePath = `${os.tmpdir()}${path.sep}${distinctFile}`;
+    logger.debug({ localFilePath }, 'Saving soure archive locally');
     await helpers.saveRequestFile(files.sourceArchive, localFilePath);
-    await fsClient.uploadFile(WORK_CONTAINER, localFilePath);
+
+    const wasSuccessful = await provider.updateFunction(providerFuncId,
+      localFilePath,
+      body.runtime,
+      body.entryPoint);
     await new Promise((res) => { fs.unlink(localFilePath, () => { res(); }); });
-    await qsClient.enqueueMessage(WORK_QUEUE, {
-      functionId: resourceId,
-      sourceContainer: WORK_CONTAINER,
-      sourcePath: distinctFile,
-    });
-    const eventId = uuid.v4();
-    await nsClient.emit(NOTIFICATION_WORK, { queue: WORK_QUEUE, eventId });
+    logger.debug({
+      wasSuccessful,
+      providerFuncId,
+    }, 'Attempted to update provider function');
+    // TODO: Resume Below Here
+    const respObj = {
+      id: resourceId,
+      status: wasSuccessful ? 'buildComplete' : 'buildFailed',
+    };
 
-    return new Promise((resolve) => {
-      nsClient.on(NOTIFICATION_WORK, (event) => {
-        const details = event.message;
-        /* istanbul ignore else */
-        if (details.eventId === eventId) {
-          const finalizedStatuses = ['buildComplete', 'buildFailed'];
-          /* istanbul ignore else */
-          if (finalizedStatuses.indexOf(details.status) > -1) {
-            nsClient.close();
+    /* istanbul ignore else */
+    if (wasSuccessful) {
+      // respObj.invokeUrl = buildInvokeUrlForFunction(resourceId);
+      respObj.orid = makeOrid(resourceId, accountId);
+    }
 
-            const respObj = {
-              id: resourceId,
-              status: details.status,
-            };
-
-            /* istanbul ignore else */
-            if (details.status === 'buildComplete') {
-              respObj.invokeUrl = buildInvokeUrlForFunction(resourceId);
-              respObj.orid = makeOrid(resourceId, accountId);
-            }
-
-            const respBody = JSON.stringify(respObj);
-            resolve();
-            handlerHelpers.sendResponse(response, 201, respBody)
-              .then(() => resolve());
-          }
-        }
-      });
-    });
+    const respBody = JSON.stringify(respObj);
+    return handlerHelpers.sendResponse(response, 201, respBody);
   } catch (err) {
     logger.error(
       { err, requestOrid, info: VError.info(err) },
@@ -298,39 +231,6 @@ const uploadCodeToFunction = async (request, response) => {
     return handlerHelpers.sendResponse(response, 500);
   } finally {
     db.close();
-  }
-};
-
-const invokeFunctionWithRetry = async (invokeUrl, body, retryMeta) => {
-  const postOptions = {
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    validateStatus: () => true, // Don't reject on any request
-  };
-
-  const attempt = _.get(retryMeta, ['attempt'], 1);
-  const maxAttempt = _.get(retryMeta, ['maxAttempt'], 3);
-  try {
-    const resp = await axios.post(invokeUrl, body, postOptions);
-    if (resp.status > 499 && attempt < maxAttempt) {
-      await globals.delay(500 * attempt);
-      return invokeFunctionWithRetry(invokeUrl, body, { attempt: attempt + 1, maxAttempt });
-    }
-
-    return resp;
-  } catch (err) {
-    logger.warn(
-      { err, attempt, maxAttempt },
-      'Error encountered while attempting to invoke function.',
-    );
-    if (attempt >= maxAttempt) {
-      throw err;
-    }
-
-    await globals.delay(1000 * attempt);
-    return invokeFunctionWithRetry(invokeUrl, body, { attempt: attempt + 1, maxAttempt });
   }
 };
 
@@ -362,6 +262,7 @@ const invokeFunction = async (request, response) => {
       return handlerHelpers.sendResponse(response, 404, JSON.stringify(respBody));
     }
 
+    const provider = await fnProvider.getProviderForRuntime(findResult.runtime);
     const updatePayload = {
       $set: {
         lastInvoke: new Date().toISOString(),
@@ -375,52 +276,31 @@ const invokeFunction = async (request, response) => {
       },
     };
 
-    const throttleKey = `mdsFn-${accountId}:${resourceId}`;
-    if (isTruthy(helpers.getEnvVar('MDS_FN_USE_INVOKE_THROTTLE'))) {
-      try {
-        await simpleThrottle.acquire(throttleKey);
-      } catch (err) {
-        const respBody = JSON.stringify({
-          id: resourceId,
-          message: 'Too many requests',
-        });
-        return handlerHelpers.sendResponse(response, 429, respBody);
-      }
-    }
-
     await functionsCol.updateOne(
       { id: resourceId, accountId },
       updatePayload,
       options,
     );
 
-    const { invokeUrl } = findResult;
-    if (invokeUrl) {
-      if (isTruthy(query.async)) {
-        const respBody = JSON.stringify({
-          message: 'Request accepted. Function should begin soon.',
-        });
-        handlerHelpers.sendResponse(response, 202, respBody);
-      }
-
+    // TODO: Update this code.
+    const { providerFuncId } = findResult;
+    if (providerFuncId) {
       try {
-        const resp = await invokeFunctionWithRetry(invokeUrl, body);
         if (isTruthy(query.async)) {
-          return Promise.resolve();
+          provider.invokeFunction(providerFuncId, body);
+          const respBody = JSON.stringify({
+            message: 'Request accepted. Function should begin soon.',
+          });
+          return handlerHelpers.sendResponse(response, 202, respBody);
         }
+        const resp = await provider.invokeFunction(providerFuncId, body);
         return handlerHelpers.sendResponse(response, resp.status, JSON.stringify(resp.data));
       } catch (err) {
+        logger.error({ err }, 'Failed when invoking function');
         return handlerHelpers.sendResponse(response, 500);
-      } finally {
-        if (isTruthy(helpers.getEnvVar('MDS_FN_USE_INVOKE_THROTTLE'))) {
-          simpleThrottle.release(throttleKey);
-        }
       }
     }
 
-    if (isTruthy(helpers.getEnvVar('MDS_FN_USE_INVOKE_THROTTLE'))) {
-      simpleThrottle.release(throttleKey);
-    }
     const respBody = JSON.stringify({
       id: resourceId,
       message: 'Function does not appear to have code associated yet. Please upload code then try again.',
@@ -447,11 +327,12 @@ const inspectFunction = async (request, response) => {
       return handlerHelpers.sendResponse(response, 404, respBody);
     }
 
+    // TODO: Research putting version back on here.
     const respBody = {
       id: findResult.id,
       orid: makeOrid(findResult.id, accountId),
       name: findResult.name,
-      version: `${findResult.version}`,
+      // version: `${findResult.version}`,
       runtime: findResult.runtime,
       entryPoint: findResult.entryPoint,
       created: findResult.created,

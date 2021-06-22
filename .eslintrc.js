@@ -1,17 +1,17 @@
 module.exports = {
-  "env": {
-    "commonjs": true,
-    "es6": true,
-    "node": true,
-    "mocha": true
+  env: {
+    commonjs: true,
+    es6: true,
+    node: true,
+    mocha: true,
   },
-  "extends": "airbnb-base",
-  "parserOptions": {
-    "ecmaVersion": 2018
+  extends: 'airbnb-base',
+  parserOptions: {
+    ecmaVersion: 2018,
   },
-  "rules": {},
-  "globals": {
-    "Atomics": "readonly",
-    "SharedArrayBuffer": "readonly"
-  }
+  rules: {},
+  globals: {
+    Atomics: 'readonly',
+    SharedArrayBuffer: 'readonly',
+  },
 };

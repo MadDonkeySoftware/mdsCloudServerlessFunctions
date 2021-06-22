@@ -1,32 +1,45 @@
 /* eslint-disable no-unused-expressions */
 
+const _ = require('lodash');
 const chai = require('chai');
 const sinon = require('sinon');
 
 const fnProvider = require('./index');
-const fnProjectProvider = require('./fnProject');
+const configLoader = require('../configLoader');
 
-describe('src/fnProviders', () => {
+describe(__filename, () => {
   afterEach(() => {
     sinon.restore();
   });
 
-  it('returns undefined provider when undefined runtime', () => {
-    chai.expect(fnProvider.getProviderForRuntime()).to.be.undefined;
+  it('returns undefined provider when undefined runtime', async () => {
+    chai.expect(await fnProvider.getProviderForRuntime()).to.be.undefined;
   });
 
-  it('throws error when unknown runtime', () => {
-    chai.expect(() => fnProvider.getProviderForRuntime('Terrible'))
-      .to.throw('Runtime "Terrible" not understood.');
+  it('throws error when unknown runtime', async () => {
+    try {
+      await fnProvider.getProviderForRuntime('terrible');
+      throw new Error('Test should of throw error but did not.');
+    } catch (err) {
+      chai.expect(err.message).to.be.equal(
+        'Runtime "terrible" for provider "" configured improperly or not understood.',
+      );
+    }
   });
 
-  describe('Valid provider', () => {
-    it('NAME attribute is provider implementation value', () => {
+  _.map([['mdsCloud']], ([providerType]) => {
+    it(`returns properly configured ${providerType} provider for runtime`, async () => {
       // Arrange
-      const provider = fnProvider.getProviderForRuntime('node');
+      sinon.stub(configLoader, 'getProviderConfigForRuntime')
+        .resolves({
+          type: providerType,
+        });
 
-      // Act / Assert
-      chai.expect(provider.NAME).to.equal(fnProjectProvider.NAME);
+      // Act
+      const result = await fnProvider.getProviderForRuntime('node');
+
+      // Assert
+      chai.expect(result).to.exist;
     });
   });
 });
