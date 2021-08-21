@@ -50,13 +50,16 @@ constructor.prototype.createFunction = async function createFunction(name, accou
 };
 
 constructor.prototype.updateFunction = async function updateFunction(
-  functionId, sourcePath, runtime, entryPoint,
+  functionId, sourcePath, runtime, entryPoint, context,
 ) {
   const form = new FormData();
   form.append('functionId', functionId);
   form.append('sourceArchive', fs.createReadStream(sourcePath));
   form.append('runtime', runtime);
   form.append('entryPoint', entryPoint);
+  if (context) {
+    form.append('context', context);
+  }
   const token = await this.authManager.getAuthenticationToken();
   const headers = _.merge(
     {},
