@@ -203,7 +203,8 @@ const uploadCodeToFunction = async (request, response) => {
     const wasSuccessful = await provider.updateFunction(providerFuncId,
       localFilePath,
       body.runtime,
-      body.entryPoint);
+      body.entryPoint,
+      body.context);
     await new Promise((res) => { fs.unlink(localFilePath, () => { res(); }); });
     logger.debug({
       wasSuccessful,

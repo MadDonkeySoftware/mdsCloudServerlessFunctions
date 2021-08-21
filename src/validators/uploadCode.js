@@ -14,6 +14,10 @@ const createRequestSchema = {
       type: 'string',
       description: 'Friendly name of this serverless function',
     },
+    context: {
+      type: 'string',
+      description: 'Any contextual data to send to this function upon execution',
+    },
   },
   required: ['entryPoint', 'runtime'],
   additionalProperties: false,
