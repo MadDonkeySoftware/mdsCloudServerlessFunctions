@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/MadDonkeySoftware/mdsCloudServerlessFunctions#readme",
   "dependencies": {
-    "@maddonkeysoftware/mds-cloud-sdk-node": "0.1.0",
+    "@maddonkeysoftware/mds-cloud-sdk-node": "0.2.6",
     "@maddonkeysoftware/orid-node": "^0.1.0",
     "axios": "^0.21.1",
     "build-url": "^6.0.1",
