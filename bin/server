@@ -28,7 +28,7 @@ const run = async () => {
       userId: process.env.MDS_FN_SYS_USER,
       password: process.env.MDS_FN_SYS_PASSWORD,
     };
-    mds.initialize(conf);
+    await mds.initialize(conf);
     logger.info({
       config: _.omit(conf, 'password'),
       specifiedRuntimes,
