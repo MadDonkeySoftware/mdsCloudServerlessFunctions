@@ -1,8 +1,10 @@
 const _ = require('lodash');
 const { MongoClient } = require('mongodb');
 
-const getMongoUrl = (env) => _.get(env, ['MDS_FN_MONGO_URL'], 'mongodb://127.0.0.1:27017');
-const getMongoDbName = (env) => _.get(env, ['MDS_FN_MONGO_DB_NAME'], 'mdsCloudServerlessFunctions');
+const getMongoUrl = (env) =>
+  _.get(env, ['MDS_FN_MONGO_URL'], 'mongodb://127.0.0.1:27017');
+const getMongoDbName = (env) =>
+  _.get(env, ['MDS_FN_MONGO_DB_NAME'], 'mdsCloudServerlessFunctions');
 
 const defaultOptions = { useNewUrlParser: true, useUnifiedTopology: true };
 

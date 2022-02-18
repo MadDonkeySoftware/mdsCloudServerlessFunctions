@@ -30,16 +30,16 @@ const makeRequest = async (urlRoot, data, retryMeta = {}) => {
     validateStatus: () => true,
   };
 
-  const url = buildUrl(
-    urlRoot,
-    data,
-  );
+  const url = buildUrl(urlRoot, data);
 
-  logger.debug({
-    url,
-    urlRoot,
-    requestId,
-  }, 'Attempting to make provider request');
+  logger.debug(
+    {
+      url,
+      urlRoot,
+      requestId,
+    },
+    'Attempting to make provider request',
+  );
 
   let resp;
   let throwUnknownVerb = false;
@@ -61,7 +61,10 @@ const makeRequest = async (urlRoot, data, retryMeta = {}) => {
     const doNotBlock = ['ERR_NOCK_NO_MATCH'];
     if (doNotBlock.indexOf(err.code) > -1) throw err;
 
-    logger.warn({ requestId, err }, 'Error occurred when making request to function provider.');
+    logger.warn(
+      { requestId, err },
+      'Error occurred when making request to function provider.',
+    );
   }
 
   /* istanbul ignore if */
@@ -72,7 +75,10 @@ const makeRequest = async (urlRoot, data, retryMeta = {}) => {
   const attempt = _.get(retryMeta, ['attempt'], 1);
   const maxAttempt = _.get(retryMeta, ['maxAttempt'], 3);
   if ((resp === undefined || resp.status > 499) && attempt < maxAttempt) {
-    logger.warn({ requestId, status: resp.status }, 'Provider error encountered. Retrying after delay');
+    logger.warn(
+      { requestId, status: resp.status },
+      'Provider error encountered. Retrying after delay',
+    );
     await globals.delay(500 * attempt);
     return makeRequest(urlRoot, data, { attempt: attempt + 1, maxAttempt });
   }

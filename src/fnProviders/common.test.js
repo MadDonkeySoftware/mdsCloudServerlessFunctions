@@ -105,7 +105,9 @@ describe(__filename, () => {
         throw new Error('Test should of thrown error but did not');
       } catch (err) {
         // Assert
-        chai.expect(err.message).to.be.equal('HTTP verb "does-not-exist" not understood.');
+        chai
+          .expect(err.message)
+          .to.be.equal('HTTP verb "does-not-exist" not understood.');
       }
     });
   });

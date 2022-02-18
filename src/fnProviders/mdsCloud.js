@@ -23,34 +23,43 @@ function constructor(baseUrl) {
     userId: helpers.getEnvVar('MDS_FN_SYS_USER'),
     password: helpers.getEnvVar('MDS_FN_SYS_PASSWORD'),
     account: helpers.getEnvVar('MDS_FN_SYS_ACCOUNT'),
-    allowSelfSignCert: !!isTruthy(helpers.getEnvVar('MDS_FN_SYS_ALLOW_SELFSIGN_CERT', '')),
+    allowSelfSignCert: !!isTruthy(
+      helpers.getEnvVar('MDS_FN_SYS_ALLOW_SELFSIGN_CERT', ''),
+    ),
   });
 }
 
-constructor.prototype.createFunction = async function createFunction(name, accountId) {
+constructor.prototype.createFunction = async function createFunction(
+  name,
+  accountId,
+) {
   const logger = globals.getLogger();
   const body = { name, accountId };
   const token = await this.authManager.getAuthenticationToken();
-  const resp = await common.makeRequest(
-    this.baseUrl,
-    {
-      path: '/v1/createFunction',
-      httpVerb: 'post',
-      headers: { token },
-      body,
-    },
-  );
+  const resp = await common.makeRequest(this.baseUrl, {
+    path: '/v1/createFunction',
+    httpVerb: 'post',
+    headers: { token },
+    body,
+  });
 
   if (resp.status === 201) {
     return resp.data.id;
   }
 
-  logger.warn({ status: resp.status, response: resp.data }, 'Failed to create MDSCloud function.');
+  logger.warn(
+    { status: resp.status, response: resp.data },
+    'Failed to create MDSCloud function.',
+  );
   return undefined;
 };
 
 constructor.prototype.updateFunction = async function updateFunction(
-  functionId, sourcePath, runtime, entryPoint, context,
+  functionId,
+  sourcePath,
+  runtime,
+  entryPoint,
+  context,
 ) {
   const form = new FormData();
   form.append('functionId', functionId);
@@ -61,42 +70,38 @@ constructor.prototype.updateFunction = async function updateFunction(
     form.append('context', context);
   }
   const token = await this.authManager.getAuthenticationToken();
-  const headers = _.merge(
-    {},
-    { token },
-    form.getHeaders(),
-  );
+  const headers = _.merge({}, { token }, form.getHeaders());
 
-  const resp = await common.makeRequest(
-    this.baseUrl,
-    {
-      path: '/v1/buildFunction',
-      httpVerb: 'post',
-      headers,
-      body: form,
-    },
-  );
+  const resp = await common.makeRequest(this.baseUrl, {
+    path: '/v1/buildFunction',
+    httpVerb: 'post',
+    headers,
+    body: form,
+  });
 
   if (resp.status === 200) {
     return true;
   }
 
   const logger = globals.getLogger();
-  logger.warn({ status: resp.status, response: resp.data }, 'Failed to update MDSCloud function.');
+  logger.warn(
+    { status: resp.status, response: resp.data },
+    'Failed to update MDSCloud function.',
+  );
   return false;
 };
 
-constructor.prototype.invokeFunction = async function invokeFunction(functionId, payload) {
+constructor.prototype.invokeFunction = async function invokeFunction(
+  functionId,
+  payload,
+) {
   const token = await this.authManager.getAuthenticationToken();
-  const resp = await common.makeRequest(
-    this.baseUrl,
-    {
-      path: `/v1/executeFunction/${functionId}`,
-      httpVerb: 'post',
-      headers: { token },
-      body: payload,
-    },
-  );
+  const resp = await common.makeRequest(this.baseUrl, {
+    path: `/v1/executeFunction/${functionId}`,
+    httpVerb: 'post',
+    headers: { token },
+    body: payload,
+  });
 
   if (resp.status === 200) {
     return {
@@ -106,27 +111,32 @@ constructor.prototype.invokeFunction = async function invokeFunction(functionId,
   }
 
   const logger = globals.getLogger();
-  logger.warn({ status: resp.status, response: resp.data }, 'Failed to invoke MDSCloud function.');
+  logger.warn(
+    { status: resp.status, response: resp.data },
+    'Failed to invoke MDSCloud function.',
+  );
   return undefined;
 };
 
-constructor.prototype.deleteFunction = async function deleteFunction(functionId) {
+constructor.prototype.deleteFunction = async function deleteFunction(
+  functionId,
+) {
   const token = await this.authManager.getAuthenticationToken();
-  const resp = await common.makeRequest(
-    this.baseUrl,
-    {
-      path: `/v1/${functionId}`,
-      headers: { token },
-      httpVerb: 'delete',
-    },
-  );
+  const resp = await common.makeRequest(this.baseUrl, {
+    path: `/v1/${functionId}`,
+    headers: { token },
+    httpVerb: 'delete',
+  });
 
   if (resp.status === 200) {
     return true;
   }
 
   const logger = globals.getLogger();
-  logger.warn({ functionId, status: resp.status, response: resp.data }, 'Failed to delete MDSCloud function.');
+  logger.warn(
+    { functionId, status: resp.status, response: resp.data },
+    'Failed to delete MDSCloud function.',
+  );
   return false;
 };
 

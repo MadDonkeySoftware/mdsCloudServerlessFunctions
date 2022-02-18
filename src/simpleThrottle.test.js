@@ -17,9 +17,10 @@ describe('src/simpleThrottle', () => {
       it('Uses 3 for default max concurrent', () => {
         // Arrange
         const testKey = 'test';
-        const delay = (timeout) => new Promise(
-          (resolve) => setTimeout(resolve, timeout),
-        );
+        const delay = (timeout) =>
+          new Promise((resolve) => {
+            setTimeout(resolve, timeout);
+          });
 
         sinon.stub(globals, 'delay').callsFake(() => delay(1));
         const data = [];
@@ -29,32 +30,30 @@ describe('src/simpleThrottle', () => {
         simpleThrottle.acquire(testKey).then(() => data.push(4));
 
         // Act
-        return delay(10).then(() => {
-          data.push('release');
-          simpleThrottle.release(testKey);
-          return delay(10);
-        }).then(() => {
-          simpleThrottle.release(testKey);
-          simpleThrottle.release(testKey);
-          simpleThrottle.release(testKey);
-          return delay(10);
-        }).then(() => {
-          chai.expect(data).to.deep.equal([
-            1,
-            2,
-            3,
-            'release',
-            4,
-          ]);
-        });
+        return delay(10)
+          .then(() => {
+            data.push('release');
+            simpleThrottle.release(testKey);
+            return delay(10);
+          })
+          .then(() => {
+            simpleThrottle.release(testKey);
+            simpleThrottle.release(testKey);
+            simpleThrottle.release(testKey);
+            return delay(10);
+          })
+          .then(() => {
+            chai.expect(data).to.deep.equal([1, 2, 3, 'release', 4]);
+          });
       });
 
       it('', () => {
         // Arrange
         const testKey = 'test';
-        const delay = (timeout) => new Promise(
-          (resolve) => setTimeout(resolve, timeout),
-        );
+        const delay = (timeout) =>
+          new Promise((resolve) => {
+            setTimeout(resolve, timeout);
+          });
 
         sinon.stub(globals, 'delay').callsFake(() => delay(1));
         sinon.stub(helpers, 'getEnvVar').returns('2');
@@ -64,23 +63,21 @@ describe('src/simpleThrottle', () => {
         simpleThrottle.acquire(testKey).then(() => data.push(3));
 
         // Act
-        return delay(10).then(() => {
-          data.push('release');
-          simpleThrottle.release(testKey);
-          return delay(10);
-        }).then(() => {
-          simpleThrottle.release(testKey);
-          simpleThrottle.release(testKey);
-          simpleThrottle.release(testKey);
-          return delay(10);
-        }).then(() => {
-          chai.expect(data).to.deep.equal([
-            1,
-            2,
-            'release',
-            3,
-          ]);
-        });
+        return delay(10)
+          .then(() => {
+            data.push('release');
+            simpleThrottle.release(testKey);
+            return delay(10);
+          })
+          .then(() => {
+            simpleThrottle.release(testKey);
+            simpleThrottle.release(testKey);
+            simpleThrottle.release(testKey);
+            return delay(10);
+          })
+          .then(() => {
+            chai.expect(data).to.deep.equal([1, 2, 'release', 3]);
+          });
       });
     });
   });

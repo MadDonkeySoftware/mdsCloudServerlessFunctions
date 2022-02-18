@@ -7,7 +7,9 @@ const throttleData = {};
 
 // TODO: Update to configurable lock provider and add redis-lock implementation
 const acquire = async (key) => {
-  const parsedMaxConcurrent = _.parseInt(helpers.getEnvVar('MDS_FN_INVOKE_THROTTLE_MAX_CONCURRENT') || '');
+  const parsedMaxConcurrent = _.parseInt(
+    helpers.getEnvVar('MDS_FN_INVOKE_THROTTLE_MAX_CONCURRENT') || '',
+  );
   const maxConcurrent = _.isNaN(parsedMaxConcurrent) ? 3 : parsedMaxConcurrent;
   const current = _.get(throttleData, key, 0);
 

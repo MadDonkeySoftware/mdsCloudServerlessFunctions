@@ -24,7 +24,8 @@ describe(__filename, () => {
 
   it('constructor properly configures object', () => {
     // Arrange
-    sinon.stub(helpers, 'getEnvVar')
+    sinon
+      .stub(helpers, 'getEnvVar')
       .withArgs('MDS_IDENTITY_URL')
       .returns('http://127.0.0.1:8888')
       .withArgs('MDS_FN_SYS_USER')
@@ -43,7 +44,9 @@ describe(__filename, () => {
     chai.expect(obj.baseUrl).to.be.equal(serviceBaseUrl);
     chai.expect(obj.authManager.account).to.be.equal('test-acct');
     chai.expect(obj.authManager.allowSelfSignCert).to.be.equal(true);
-    chai.expect(obj.authManager.identityUrl).to.be.equal('http://127.0.0.1:8888');
+    chai
+      .expect(obj.authManager.identityUrl)
+      .to.be.equal('http://127.0.0.1:8888');
     chai.expect(obj.authManager.password).to.be.equal('test-user-pwd');
     chai.expect(obj.authManager.userId).to.be.equal('test-user');
   });
@@ -75,7 +78,9 @@ describe(__filename, () => {
     it('when unsuccessful logs the response and returns undefined', async () => {
       // Arrange
       const service = getProviderWithFakedAuthManager();
-      serviceApi.post('/v1/createFunction').reply(400, { message: 'test failure' });
+      serviceApi
+        .post('/v1/createFunction')
+        .reply(400, { message: 'test failure' });
       const fakeLogger = {
         debug: sinon.stub(),
         warn: sinon.stub(),
@@ -87,10 +92,12 @@ describe(__filename, () => {
 
       // Assert
       chai.expect(resp).to.be.undefined;
-      chai.expect(fakeLogger.warn.getCall(0).args).to.deep.equal([
-        { status: 400, response: { message: 'test failure' } },
-        'Failed to create MDSCloud function.',
-      ]);
+      chai
+        .expect(fakeLogger.warn.getCall(0).args)
+        .to.deep.equal([
+          { status: 400, response: { message: 'test failure' } },
+          'Failed to create MDSCloud function.',
+        ]);
     });
   });
 
@@ -104,7 +111,12 @@ describe(__filename, () => {
       sinon.stub(fs, 'createReadStream').returns('abc');
 
       // Act
-      const resp = await service.updateFunction('func-id', '/some/path', 'node', 'src/index:bar');
+      const resp = await service.updateFunction(
+        'func-id',
+        '/some/path',
+        'node',
+        'src/index:bar',
+      );
 
       // Assert
       chai.expect(resp).to.be.equal(true);
@@ -113,7 +125,9 @@ describe(__filename, () => {
     it('when unsuccessful logs the response and returns undefined', async () => {
       // Arrange
       const service = getProviderWithFakedAuthManager();
-      serviceApi.post('/v1/buildFunction').reply(400, { message: 'test failure' });
+      serviceApi
+        .post('/v1/buildFunction')
+        .reply(400, { message: 'test failure' });
       sinon.stub(fs, 'createReadStream').returns('abc');
       const fakeLogger = {
         debug: sinon.stub(),
@@ -122,14 +136,21 @@ describe(__filename, () => {
       sinon.stub(globals, 'getLogger').returns(fakeLogger);
 
       // Act
-      const resp = await service.updateFunction('func-id', '/some/path', 'node', 'src/index:bar');
+      const resp = await service.updateFunction(
+        'func-id',
+        '/some/path',
+        'node',
+        'src/index:bar',
+      );
 
       // Assert
       chai.expect(resp).to.be.equal(false);
-      chai.expect(fakeLogger.warn.getCall(0).args).to.deep.equal([
-        { status: 400, response: { message: 'test failure' } },
-        'Failed to update MDSCloud function.',
-      ]);
+      chai
+        .expect(fakeLogger.warn.getCall(0).args)
+        .to.deep.equal([
+          { status: 400, response: { message: 'test failure' } },
+          'Failed to update MDSCloud function.',
+        ]);
     });
   });
 
@@ -155,7 +176,9 @@ describe(__filename, () => {
     it('when unsuccessful logs the response and returns undefined', async () => {
       // Arrange
       const service = getProviderWithFakedAuthManager();
-      serviceApi.post('/v1/executeFunction/func-id').reply(400, { message: 'test failure' });
+      serviceApi
+        .post('/v1/executeFunction/func-id')
+        .reply(400, { message: 'test failure' });
       sinon.stub(fs, 'createReadStream').returns('abc');
       const fakeLogger = {
         debug: sinon.stub(),
@@ -168,10 +191,12 @@ describe(__filename, () => {
 
       // Assert
       chai.expect(resp).to.be.undefined;
-      chai.expect(fakeLogger.warn.getCall(0).args).to.deep.equal([
-        { status: 400, response: { message: 'test failure' } },
-        'Failed to invoke MDSCloud function.',
-      ]);
+      chai
+        .expect(fakeLogger.warn.getCall(0).args)
+        .to.deep.equal([
+          { status: 400, response: { message: 'test failure' } },
+          'Failed to invoke MDSCloud function.',
+        ]);
     });
   });
 
@@ -205,7 +230,11 @@ describe(__filename, () => {
       // Assert
       chai.expect(resp).to.be.equal(false);
       chai.expect(fakeLogger.warn.getCall(0).args).to.deep.equal([
-        { functionId: 'func-id', status: 400, response: { message: 'test failure' } },
+        {
+          functionId: 'func-id',
+          status: 400,
+          response: { message: 'test failure' },
+        },
         'Failed to delete MDSCloud function.',
       ]);
     });

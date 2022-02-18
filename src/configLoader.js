@@ -3,15 +3,11 @@ const fs = require('fs');
 const util = require('util');
 
 const v1Parser = {
-  getConfiguredRuntimes: (configObj) => _.keys(_.get(configObj, ['runtimeMap'])),
+  getConfiguredRuntimes: (configObj) =>
+    _.keys(_.get(configObj, ['runtimeMap'])),
 
-  getProviderConfigForRuntime: (confObj, runtime) => _.get(
-    confObj,
-    [
-      'providers',
-      _.get(confObj, ['runtimeMap', runtime]),
-    ],
-  ),
+  getProviderConfigForRuntime: (confObj, runtime) =>
+    _.get(confObj, ['providers', _.get(confObj, ['runtimeMap', runtime])]),
 };
 
 const parserMap = {
@@ -67,9 +63,7 @@ const self = {
     const configBody = await self.readConfigFile();
     let configObject;
     try {
-      configObject = configBody
-        ? JSON.parse(configBody)
-        : undefined;
+      configObject = configBody ? JSON.parse(configBody) : undefined;
     } catch (err) {
       // We don't care.
     }

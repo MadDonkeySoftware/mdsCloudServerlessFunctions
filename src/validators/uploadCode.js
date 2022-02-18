@@ -16,7 +16,8 @@ const createRequestSchema = {
     },
     context: {
       type: 'string',
-      description: 'Any contextual data to send to this function upon execution',
+      description:
+        'Any contextual data to send to this function upon execution',
     },
   },
   required: ['entryPoint', 'runtime'],

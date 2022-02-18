@@ -11,7 +11,10 @@ const buildApp = () => {
 
   /* istanbul ignore next */
   const requestLogger = (req, res, next) => {
-    logger.trace({ path: req.path, method: req.method, headers: req.headers }, 'Handling request');
+    logger.trace(
+      { path: req.path, method: req.method, headers: req.headers },
+      'Handling request',
+    );
     next();
   };
 

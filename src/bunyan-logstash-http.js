@@ -32,7 +32,8 @@ const postMessage = function postMessage(settings, message) {
     },
   };
 
-  const request = parsedUrl.protocol === 'https:' ? https.request : http.request;
+  const request =
+    parsedUrl.protocol === 'https:' ? https.request : http.request;
 
   return new Promise((resolve, reject) => {
     const req = request(options, (res) => {
@@ -52,11 +53,10 @@ const postMessage = function postMessage(settings, message) {
     });
     req.write(data);
     req.end();
-  })
-    .then((resp) => {
-      const resolve = resp.statusCode < 400;
-      return resolve ? Promise.resolve() : Promise.reject();
-    });
+  }).then((resp) => {
+    const resolve = resp.statusCode < 400;
+    return resolve ? Promise.resolve() : Promise.reject();
+  });
 };
 
 const log = (settings, level, message, metadata) => {
@@ -73,27 +73,26 @@ const log = (settings, level, message, metadata) => {
   if (retryMessages.length > 0) {
     retryMessages.push(packagedMessage);
   }
-  return postMessage(settings, packagedMessage)
-    .catch((err) => {
-      /* istanbul ignore if */
-      if (err.code === 'ECONNREFUSED') {
-        retryMessages.unshift(packagedMessage);
-        if (!retryHandle) {
-          retryHandle = setInterval(() => {
-            const msg = retryMessages.pop();
-            postMessage(settings, msg)
-              .then(() => {
-                if (retryMessages.length === 0) {
-                  clearInterval(retryHandle);
-                }
-              })
-              .catch(() => retryMessages.unshift(msg));
-          }, 500);
-        }
-      } else {
-        throw err;
+  return postMessage(settings, packagedMessage).catch((err) => {
+    /* istanbul ignore if */
+    if (err.code === 'ECONNREFUSED') {
+      retryMessages.unshift(packagedMessage);
+      if (!retryHandle) {
+        retryHandle = setInterval(() => {
+          const msg = retryMessages.pop();
+          postMessage(settings, msg)
+            .then(() => {
+              if (retryMessages.length === 0) {
+                clearInterval(retryHandle);
+              }
+            })
+            .catch(() => retryMessages.unshift(msg));
+        }, 500);
       }
-    });
+    } else {
+      throw err;
+    }
+  });
 };
 
 const write = (settings, record) => {
