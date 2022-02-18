@@ -2,10 +2,10 @@
 const sinon = require('sinon');
 const chai = require('chai');
 
-const MongoClient = require('mongodb');
+const { MongoClient } = require('mongodb');
 const repo = require('.');
 
-describe('src/handlers/index', () => {
+describe(__filename, () => {
   afterEach(() => {
     sinon.restore();
   });
