@@ -27,7 +27,7 @@
     "build-url": "^6.0.1",
     "bunyan": "^1.8.15",
     "del": "^6.0.0",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-fileupload": "^1.2.1",
     "form-data": "^3.0.0",
     "jsonschema": "^1.4.0",
