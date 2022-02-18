@@ -29,35 +29,34 @@ describe(__filename, () => {
     });
   });
 
-  describe('readConfigFile', () => {
+  describe('readConfigFile', () => {});
 
-  });
-
-  describe('getVersion', () => {
-
-  });
+  describe('getVersion', () => {});
 
   describe('isValidConfig', () => {
-    _.map([
-      ['1', false, 'Invalid single digit version'],
-      ['1.0.0', false, 'Invalid tri-digit version'],
-      ['a', false, 'Invalid non-digit single digit version'],
-      ['a.b.c', false, 'Invalid non-digit tri-digit version'],
-      ['1.0', true, 'Valid two digit version'],
-    ], ([version, expected, description]) => {
-      it(description, () => {
-        // Arrange
-        const fake = {
-          version,
-        };
+    _.map(
+      [
+        ['1', false, 'Invalid single digit version'],
+        ['1.0.0', false, 'Invalid tri-digit version'],
+        ['a', false, 'Invalid non-digit single digit version'],
+        ['a.b.c', false, 'Invalid non-digit tri-digit version'],
+        ['1.0', true, 'Valid two digit version'],
+      ],
+      ([version, expected, description]) => {
+        it(description, () => {
+          // Arrange
+          const fake = {
+            version,
+          };
 
-        // Act
-        const result = configLoader.isValidConfig(fake);
+          // Act
+          const result = configLoader.isValidConfig(fake);
 
-        // Assert
-        chai.expect(result).to.equal(expected);
-      });
-    });
+          // Assert
+          chai.expect(result).to.equal(expected);
+        });
+      },
+    );
   });
 
   describe('getConfigObject', () => {
@@ -70,7 +69,9 @@ describe(__filename, () => {
       const expectedConfig = {
         version: '1.0',
       };
-      sinon.stub(configLoader, 'readConfigFile').resolves(JSON.stringify(expectedConfig));
+      sinon
+        .stub(configLoader, 'readConfigFile')
+        .resolves(JSON.stringify(expectedConfig));
 
       // Act
       const result = await configLoader.getConfigObject();
@@ -86,7 +87,9 @@ describe(__filename, () => {
         version: '1.0',
       };
       configLoader.cachedConfigObject = expectedConfig;
-      sinon.stub(configLoader, 'readConfigFile').rejects(new Error('Test not using cached config'));
+      sinon
+        .stub(configLoader, 'readConfigFile')
+        .rejects(new Error('Test not using cached config'));
 
       // Act
       const result = await configLoader.getConfigObject();
@@ -118,10 +121,7 @@ describe(__filename, () => {
       const result = await configLoader.getConfiguredRuntimes();
 
       // Assert
-      chai.expect(result).to.deep.equal([
-        'node',
-        'python',
-      ]);
+      chai.expect(result).to.deep.equal(['node', 'python']);
     });
 
     it('When no configuration present resolves empty list', async () => {

@@ -13,15 +13,13 @@ const buildLogStreams = () => {
   }
 
   if (process.env.MDS_LOG_URL) {
-    logStreams.push(
-      {
-        stream: bunyanLogstashHttp.createLoggerStream({
-          loggingEndpoint: process.env.MDS_LOG_URL,
-          level: 'debug',
-          metadata: loggerMetadata,
-        }),
-      },
-    );
+    logStreams.push({
+      stream: bunyanLogstashHttp.createLoggerStream({
+        loggingEndpoint: process.env.MDS_LOG_URL,
+        level: 'debug',
+        metadata: loggerMetadata,
+      }),
+    });
   }
 
   return logStreams;
@@ -39,7 +37,10 @@ const logger = bunyan.createLogger({
  */
 const getLogger = () => logger;
 
-const delay = (timeout) => new Promise((resolve) => setTimeout(resolve, timeout));
+const delay = (timeout) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, timeout);
+  });
 
 const generateRandomString = (length) => {
   if (!length || length < 1) {
@@ -49,7 +50,7 @@ const generateRandomString = (length) => {
   // When converting bytes to hex you get two characters for every byte. So
   // we divide the requested length in half rounding up to save a bit of
   // memory / processing.
-  const l = Math.floor((length / 2.0) + 0.5);
+  const l = Math.floor(length / 2.0 + 0.5);
   const str = crypto.randomBytes(l).toString('hex');
   return str.substring(0, length);
 };

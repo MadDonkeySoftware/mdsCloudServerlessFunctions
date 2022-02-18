@@ -66,12 +66,19 @@ describe.skip('src/fnProviders', () => {
         api.get('/v2/apps').reply(300);
 
         // Act
-        return provider.findAppIdByName('findMe').then(() => {
-          chai.expect(true).to.equal(false, 'Test passed when it should error.');
-        }).catch((err) => {
-          // Assert
-          chai.expect(err.message).to.equal('Could not get application list from provider');
-        });
+        return provider
+          .findAppIdByName('findMe')
+          .then(() => {
+            chai
+              .expect(true)
+              .to.equal(false, 'Test passed when it should error.');
+          })
+          .catch((err) => {
+            // Assert
+            chai
+              .expect(err.message)
+              .to.equal('Could not get application list from provider');
+          });
       });
     });
 
@@ -97,11 +104,11 @@ describe.skip('src/fnProviders', () => {
 
       it('when post fails with conflict return id from app list', () => {
         // Arrange
-        api.post('/v2/apps', { name: 'testApp' }).reply(409, { message: 'conflict' });
+        api
+          .post('/v2/apps', { name: 'testApp' })
+          .reply(409, { message: 'conflict' });
         api.get('/v2/apps').reply(200, {
-          items: [
-            { id: 1, name: 'testApp' },
-          ],
+          items: [{ id: 1, name: 'testApp' }],
         });
 
         // Act

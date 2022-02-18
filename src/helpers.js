@@ -7,22 +7,24 @@ const del = require('del');
  * @param {string} defaultValue the environment variable key
  * @returns {string} the environment variable value
  */
-const getEnvVar = (key, defaultValue) => _.get(process.env, [key], defaultValue);
+const getEnvVar = (key, defaultValue) =>
+  _.get(process.env, [key], defaultValue);
 
 /**
  * Provides a wrapper around request file move for testing
  * @param {*} requestFile the file object from the request
  * @param {*} savePath the location to save the file
  */
-const saveRequestFile = (requestFile, savePath) => new Promise((res, rej) => {
-  requestFile.mv(savePath, (err) => {
-    if (err) {
-      rej(err);
-    } else {
-      res();
-    }
+const saveRequestFile = (requestFile, savePath) =>
+  new Promise((res, rej) => {
+    requestFile.mv(savePath, (err) => {
+      if (err) {
+        rej(err);
+      } else {
+        res();
+      }
+    });
   });
-});
 
 /**
  * Provides a wrapper around file / folder delete for testing
@@ -38,8 +40,8 @@ const deleteFileOrPath = (fileOrPath, options) => del(fileOrPath, options);
  * @param {*} filename the file name that the user will be provided
  * @param {*} callback the callback to indicate completion or failure
  */
-const downloadFile = (request, filePath, filename, callback) => (
-  request.download(filePath, filename, callback));
+const downloadFile = (request, filePath, filename, callback) =>
+  request.download(filePath, filename, callback);
 
 module.exports = {
   getEnvVar,

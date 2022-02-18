@@ -2,10 +2,10 @@
 const sinon = require('sinon');
 const chai = require('chai');
 
-const MongoClient = require('mongodb');
+const { MongoClient } = require('mongodb');
 const repo = require('.');
 
-describe('src/handlers/index', () => {
+describe(__filename, () => {
   afterEach(() => {
     sinon.restore();
   });
@@ -23,7 +23,9 @@ describe('src/handlers/index', () => {
       const fakeCollection = {};
       fakeConnection.db.returns(fakeDatabase);
       fakeDatabase.collection.returns(fakeCollection);
-      const connectStub = sinon.stub(MongoClient, 'connect').resolves(fakeConnection);
+      const connectStub = sinon
+        .stub(MongoClient, 'connect')
+        .resolves(fakeConnection);
 
       // Act
       repo.getDatabase().then((db) => {
@@ -35,7 +37,9 @@ describe('src/handlers/index', () => {
         chai.expect(col).to.equal(fakeCollection);
         const connectCalls = connectStub.getCalls();
         chai.expect(connectCalls.length).to.equal(1);
-        chai.expect(connectCalls[0].args[0]).to.equal('mongodb://127.0.0.1:27017');
+        chai
+          .expect(connectCalls[0].args[0])
+          .to.equal('mongodb://127.0.0.1:27017');
         const dbCalls = fakeConnection.db.getCalls();
         chai.expect(dbCalls.length).to.equal(1);
         chai.expect(dbCalls[0].args[0]).to.equal('mdsCloudServerlessFunctions');
@@ -55,7 +59,9 @@ describe('src/handlers/index', () => {
       const fakeCollection = {};
       fakeConnection.db.returns(fakeDatabase);
       fakeDatabase.collection.returns(fakeCollection);
-      const connectStub = sinon.stub(MongoClient, 'connect').resolves(fakeConnection);
+      const connectStub = sinon
+        .stub(MongoClient, 'connect')
+        .resolves(fakeConnection);
 
       // Act
       repo.getDatabase('some-url').then((db) => {

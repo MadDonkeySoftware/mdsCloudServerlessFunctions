@@ -49,7 +49,9 @@ const MdsCloudProvider = require('./mdsCloud');
  */
 const getProviderForRuntime = async (runtime) => {
   if (runtime === undefined) return undefined;
-  const providerConfig = await configLoader.getProviderConfigForRuntime(runtime);
+  const providerConfig = await configLoader.getProviderConfigForRuntime(
+    runtime,
+  );
   const providerType = _.get(providerConfig, ['type'], '');
 
   switch (providerType.toUpperCase()) {
@@ -59,7 +61,9 @@ const getProviderForRuntime = async (runtime) => {
       return new MdsCloudProvider(providerConfig.baseUrl);
     }
     default:
-      throw new Error(`Runtime "${runtime}" for provider "${providerType}" configured improperly or not understood.`);
+      throw new Error(
+        `Runtime "${runtime}" for provider "${providerType}" configured improperly or not understood.`,
+      );
   }
 };
 

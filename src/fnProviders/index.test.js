@@ -21,19 +21,20 @@ describe(__filename, () => {
       await fnProvider.getProviderForRuntime('terrible');
       throw new Error('Test should of throw error but did not.');
     } catch (err) {
-      chai.expect(err.message).to.be.equal(
-        'Runtime "terrible" for provider "" configured improperly or not understood.',
-      );
+      chai
+        .expect(err.message)
+        .to.be.equal(
+          'Runtime "terrible" for provider "" configured improperly or not understood.',
+        );
     }
   });
 
   _.map([['mdsCloud']], ([providerType]) => {
     it(`returns properly configured ${providerType} provider for runtime`, async () => {
       // Arrange
-      sinon.stub(configLoader, 'getProviderConfigForRuntime')
-        .resolves({
-          type: providerType,
-        });
+      sinon.stub(configLoader, 'getProviderConfigForRuntime').resolves({
+        type: providerType,
+      });
 
       // Act
       const result = await fnProvider.getProviderForRuntime('node');

@@ -1,8 +1,6 @@
 const _ = require('lodash');
 
-const SUPPORTED_RUNTIMES = [
-  'node',
-];
+const SUPPORTED_RUNTIMES = ['node'];
 
 /**
  *

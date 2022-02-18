@@ -11,7 +11,7 @@ describe('src/runtimes', () => {
   });
 
   describe('reduce', () => {
-    it('returns nothing when runtime doesn\'t match', () => {
+    it("returns nothing when runtime doesn't match", () => {
       const result = runtimeReducer.reduce(['unknown']);
       chai.expect(result).to.deep.equal([]);
     });

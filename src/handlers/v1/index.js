@@ -23,10 +23,13 @@ const oridBase = {
   service: 'sf',
 };
 
-const makeOrid = (resourceId, accountId) => orid.v1.generate(_.merge({}, oridBase, {
-  resourceId,
-  custom3: accountId,
-}));
+const makeOrid = (resourceId, accountId) =>
+  orid.v1.generate(
+    _.merge({}, oridBase, {
+      resourceId,
+      custom3: accountId,
+    }),
+  );
 
 const createFunction = async (request, response) => {
   const { body } = request;
@@ -34,7 +37,11 @@ const createFunction = async (request, response) => {
 
   const validationResult = createValidator.validate(body);
   if (!validationResult.valid) {
-    return handlerHelpers.sendResponse(response, 400, JSON.stringify(validationResult.errors));
+    return handlerHelpers.sendResponse(
+      response,
+      400,
+      JSON.stringify(validationResult.errors),
+    );
   }
 
   const options = {
@@ -49,18 +56,29 @@ const createFunction = async (request, response) => {
   try {
     const functionsCol = db.getCollection('functions');
 
-    const findResult = await functionsCol.findOne({ name: body.name, accountId });
+    const findResult = await functionsCol.findOne({
+      name: body.name,
+      accountId,
+    });
 
     if (findResult) {
-      return handlerHelpers.sendResponse(response, 409, JSON.stringify({ id: findResult.id }));
+      return handlerHelpers.sendResponse(
+        response,
+        409,
+        JSON.stringify({ id: findResult.id }),
+      );
     }
 
-    const newItem = _.merge({}, {
-      id: uuid.v4(),
-      accountId,
-      created: new Date().toISOString(),
-      version: 0,
-    }, body);
+    const newItem = _.merge(
+      {},
+      {
+        id: uuid.v4(),
+        accountId,
+        created: new Date().toISOString(),
+        version: 0,
+      },
+      body,
+    );
 
     await functionsCol.insertOne(newItem, options);
     const respBody = {
@@ -79,16 +97,21 @@ const listFunctions = (request, response) => {
   return repo.getDatabase().then((db) => {
     const functionsCol = db.getCollection('functions');
 
-    return functionsCol.find({ accountId }).toArray().then((findResults) => {
-      const result = _.map(
-        findResults,
-        (e) => ({
+    return functionsCol
+      .find({ accountId })
+      .toArray()
+      .then((findResults) => {
+        const result = _.map(findResults, (e) => ({
           name: e.name,
           orid: makeOrid(e.id, accountId),
-        }),
-      );
-      return handlerHelpers.sendResponse(response, 200, JSON.stringify(result));
-    }).finally(() => db.close());
+        }));
+        return handlerHelpers.sendResponse(
+          response,
+          200,
+          JSON.stringify(result),
+        );
+      })
+      .finally(() => db.close());
   });
 };
 
@@ -122,10 +145,7 @@ const deleteFunction = async (request, response) => {
 };
 
 const uploadCodeToFunction = async (request, response) => {
-  const {
-    body,
-    files,
-  } = request;
+  const { body, files } = request;
 
   const validationResult = uploadCodeValidator.validate(body);
   if (!validationResult.valid) {
@@ -135,7 +155,9 @@ const uploadCodeToFunction = async (request, response) => {
   }
 
   if (!files || !files.sourceArchive) {
-    const respBody = JSON.stringify([{ message: 'sourceArchive missing from payload' }]);
+    const respBody = JSON.stringify([
+      { message: 'sourceArchive missing from payload' },
+    ]);
     return handlerHelpers.sendResponse(response, 400, respBody);
   }
 
@@ -154,10 +176,16 @@ const uploadCodeToFunction = async (request, response) => {
   const db = await repo.getDatabase();
   try {
     const functionsCol = db.getCollection('functions');
-    const findResult = await functionsCol.findOne({ id: resourceId, accountId });
+    const findResult = await functionsCol.findOne({
+      id: resourceId,
+      accountId,
+    });
 
     if (!findResult) {
-      const respBody = JSON.stringify({ id: resourceId, message: 'Function not found.' });
+      const respBody = JSON.stringify({
+        id: resourceId,
+        message: 'Function not found.',
+      });
       return handlerHelpers.sendResponse(response, 404, respBody);
     }
 
@@ -166,7 +194,10 @@ const uploadCodeToFunction = async (request, response) => {
 
     let { providerFuncId } = findResult;
     if (!providerFuncId) {
-      providerFuncId = await provider.createFunction(findResult.name, accountId);
+      providerFuncId = await provider.createFunction(
+        findResult.name,
+        accountId,
+      );
       if (!providerFuncId) {
         logger.warn(
           { accountId, resourceId },
@@ -186,30 +217,37 @@ const uploadCodeToFunction = async (request, response) => {
       // $inc: { version: 1 },
     };
 
-    await functionsCol.updateOne(
-      { id: resourceId },
-      updatePayload,
-      options,
-    );
+    await functionsCol.updateOne({ id: resourceId }, updatePayload, options);
 
     // We need to make sure the file name is unique in case a single archive is used for multiple
     // function code uploads.
     // TODO: There has to be a way to do this without writing the file to disk.
-    const distinctFile = `${globals.generateRandomString(8)}-${files.sourceArchive.name}`;
+    const distinctFile = `${globals.generateRandomString(8)}-${
+      files.sourceArchive.name
+    }`;
     const localFilePath = `${os.tmpdir()}${path.sep}${distinctFile}`;
     logger.debug({ localFilePath }, 'Saving soure archive locally');
     await helpers.saveRequestFile(files.sourceArchive, localFilePath);
 
-    const wasSuccessful = await provider.updateFunction(providerFuncId,
+    const wasSuccessful = await provider.updateFunction(
+      providerFuncId,
       localFilePath,
       body.runtime,
       body.entryPoint,
-      body.context);
-    await new Promise((res) => { fs.unlink(localFilePath, () => { res(); }); });
-    logger.debug({
-      wasSuccessful,
-      providerFuncId,
-    }, 'Attempted to update provider function');
+      body.context,
+    );
+    await new Promise((res) => {
+      fs.unlink(localFilePath, () => {
+        res();
+      });
+    });
+    logger.debug(
+      {
+        wasSuccessful,
+        providerFuncId,
+      },
+      'Attempted to update provider function',
+    );
     // TODO: Resume Below Here
     const respObj = {
       id: resourceId,
@@ -237,16 +275,11 @@ const uploadCodeToFunction = async (request, response) => {
 
 const isTruthy = (value) => {
   const casedValue = `${value}`.toUpperCase();
-  return (casedValue === 'TRUE'
-    || casedValue === '1'
-    || casedValue === 'T');
+  return casedValue === 'TRUE' || casedValue === '1' || casedValue === 'T';
 };
 
 const invokeFunction = async (request, response) => {
-  const {
-    body,
-    query,
-  } = request;
+  const { body, query } = request;
 
   const requestOrid = handlerHelpers.getOridFromRequest(request, 'orid');
   const { resourceId } = requestOrid;
@@ -256,11 +289,18 @@ const invokeFunction = async (request, response) => {
   try {
     const functionsCol = db.getCollection('functions');
 
-    const findResult = await functionsCol.findOne({ id: resourceId, accountId });
+    const findResult = await functionsCol.findOne({
+      id: resourceId,
+      accountId,
+    });
 
     if (!findResult) {
       const respBody = { id: resourceId, message: 'Function not found.' };
-      return handlerHelpers.sendResponse(response, 404, JSON.stringify(respBody));
+      return handlerHelpers.sendResponse(
+        response,
+        404,
+        JSON.stringify(respBody),
+      );
     }
 
     const provider = await fnProvider.getProviderForRuntime(findResult.runtime);
@@ -295,7 +335,11 @@ const invokeFunction = async (request, response) => {
           return handlerHelpers.sendResponse(response, 202, respBody);
         }
         const resp = await provider.invokeFunction(providerFuncId, body);
-        return handlerHelpers.sendResponse(response, resp.status, JSON.stringify(resp.data));
+        return handlerHelpers.sendResponse(
+          response,
+          resp.status,
+          JSON.stringify(resp.data),
+        );
       } catch (err) {
         logger.error({ err }, 'Failed when invoking function');
         return handlerHelpers.sendResponse(response, 500);
@@ -304,7 +348,8 @@ const invokeFunction = async (request, response) => {
 
     const respBody = JSON.stringify({
       id: resourceId,
-      message: 'Function does not appear to have code associated yet. Please upload code then try again.',
+      message:
+        'Function does not appear to have code associated yet. Please upload code then try again.',
     });
     return handlerHelpers.sendResponse(response, 422, respBody);
   } finally {
@@ -321,7 +366,10 @@ const inspectFunction = async (request, response) => {
   try {
     const functionsCol = db.getCollection('functions');
 
-    const findResult = await functionsCol.findOne({ id: resourceId, accountId });
+    const findResult = await functionsCol.findOne({
+      id: resourceId,
+      accountId,
+    });
 
     if (!findResult) {
       const respBody = { id: resourceId, message: 'Function not found.' };
@@ -346,31 +394,35 @@ const inspectFunction = async (request, response) => {
   }
 };
 
-router.post('/create',
-  handlerHelpers.validateToken(logger),
-  createFunction);
-router.get('/list',
-  handlerHelpers.validateToken(logger),
-  listFunctions);
-router.delete('/:orid',
+router.post('/create', handlerHelpers.validateToken(logger), createFunction);
+router.get('/list', handlerHelpers.validateToken(logger), listFunctions);
+router.delete(
+  '/:orid',
   handlerHelpers.validateToken(logger),
   handlerHelpers.ensureRequestOrid(false, 'orid'),
   handlerHelpers.canAccessResource({ oridKey: 'orid', logger }),
-  deleteFunction);
-router.post('/uploadCode/:orid',
+  deleteFunction,
+);
+router.post(
+  '/uploadCode/:orid',
   handlerHelpers.validateToken(logger),
   handlerHelpers.ensureRequestOrid(false, 'orid'),
   handlerHelpers.canAccessResource({ oridKey: 'orid', logger }),
-  uploadCodeToFunction);
-router.post('/invoke/:orid',
+  uploadCodeToFunction,
+);
+router.post(
+  '/invoke/:orid',
   handlerHelpers.validateToken(logger),
   handlerHelpers.ensureRequestOrid(false, 'orid'),
   handlerHelpers.canAccessResource({ oridKey: 'orid', logger }),
-  invokeFunction);
-router.get('/inspect/:orid',
+  invokeFunction,
+);
+router.get(
+  '/inspect/:orid',
   handlerHelpers.validateToken(logger),
   handlerHelpers.ensureRequestOrid(false, 'orid'),
   handlerHelpers.canAccessResource({ oridKey: 'orid', logger }),
-  inspectFunction);
+  inspectFunction,
+);
 
 module.exports = router;

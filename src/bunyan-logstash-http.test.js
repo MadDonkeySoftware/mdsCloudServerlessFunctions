@@ -29,26 +29,27 @@ describe('bunyan-logstash-http', () => {
   };
 
   const stubRequest = (source, response) => {
-    const resp = _.merge({},
+    const resp = _.merge(
+      {},
       {
         statusCode: 200,
         socket: {
           destroy: sinon.stub(),
         },
       },
-      response);
+      response,
+    );
     const requestStub = {
       on: sinon.stub(),
       write: sinon.stub(),
       end: sinon.stub(),
     };
-    const methodStub = sinon.stub(source, 'request')
-      .callsFake((opts, cb) => {
-        setTimeout(() => {
-          cb(resp);
-        }, 1);
-        return requestStub;
-      });
+    const methodStub = sinon.stub(source, 'request').callsFake((opts, cb) => {
+      setTimeout(() => {
+        cb(resp);
+      }, 1);
+      return requestStub;
+    });
 
     return {
       requestMethodStub: methodStub,
@@ -66,8 +67,7 @@ describe('bunyan-logstash-http', () => {
       write: sinon.stub(),
       end: sinon.stub(),
     };
-    const methodStub = sinon.stub(source, 'request')
-      .returns(requestStub);
+    const methodStub = sinon.stub(source, 'request').returns(requestStub);
 
     return {
       requestMethodStub: methodStub,
@@ -88,9 +88,9 @@ describe('bunyan-logstash-http', () => {
 
     it('Throws error when loggingEndpoint not provided', () => {
       // Arrange / Act / Assert
-      chai.expect(bunyanLogstashHttp.createLoggerStream).to.throw(
-        /options\.loggingEndpoint is required but was not provided/,
-      );
+      chai
+        .expect(bunyanLogstashHttp.createLoggerStream)
+        .to.throw(/options\.loggingEndpoint is required but was not provided/);
     });
 
     it('Write method emits log message to http', () => {
@@ -104,7 +104,8 @@ describe('bunyan-logstash-http', () => {
 
       // Act
       return obj.write(logRecord).then(() => {
-        const expectedLog = '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
+        const expectedLog =
+          '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
 
         // Assert
         chai.expect(requestMethodStub.callCount).to.eql(1);
@@ -125,7 +126,8 @@ describe('bunyan-logstash-http', () => {
 
       // Act
       return obj.write(logRecord).then(() => {
-        const expectedLog = '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
+        const expectedLog =
+          '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
 
         // Assert
         chai.expect(requestMethodStub.callCount).to.eql(1);
@@ -147,7 +149,8 @@ describe('bunyan-logstash-http', () => {
 
       // Act
       return obj.write(logRecord).then(() => {
-        const expectedLog = '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"from custom formatter","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
+        const expectedLog =
+          '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"from custom formatter","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
 
         // Assert
         chai.expect(requestMethodStub.callCount).to.eql(1);
@@ -183,14 +186,19 @@ describe('bunyan-logstash-http', () => {
       const obj = bunyanLogstashHttp.createLoggerStream({
         loggingEndpoint: 'http://127.0.0.1:8080',
         level: 'debug',
-        customFormatter: () => { throw new Error('test error'); },
+        customFormatter: () => {
+          throw new Error('test error');
+        },
       });
       const { requestMethodStub } = stubRequest(http);
       const logRecord = { msg: 'test' };
 
       // Act
-      return obj.write(logRecord)
-        .then(() => new chai.AssertionError('Test passed when it should of failed'))
+      return obj
+        .write(logRecord)
+        .then(
+          () => new chai.AssertionError('Test passed when it should of failed'),
+        )
         .catch((err) => {
           // Assert
           chai.expect(requestMethodStub.callCount).to.eql(0);
@@ -204,15 +212,20 @@ describe('bunyan-logstash-http', () => {
       const obj = bunyanLogstashHttp.createLoggerStream({
         loggingEndpoint: 'http://127.0.0.1:8080',
         level: 'debug',
-        customFormatter: () => { throw new Error('test error'); },
+        customFormatter: () => {
+          throw new Error('test error');
+        },
         error: errHandler,
       });
       const { requestMethodStub } = stubRequest(http);
       const logRecord = { msg: 'test' };
 
       // Act
-      return obj.write(logRecord)
-        .then(() => new chai.AssertionError('Test passed when it should of failed'))
+      return obj
+        .write(logRecord)
+        .then(
+          () => new chai.AssertionError('Test passed when it should of failed'),
+        )
         .catch((err) => {
           // Assert
           chai.expect(requestMethodStub.callCount).to.eql(0);
@@ -234,7 +247,8 @@ describe('bunyan-logstash-http', () => {
 
       // Act
       return obj.write(logRecord).catch(() => {
-        const expectedLog = '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
+        const expectedLog =
+          '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
 
         // Assert
         chai.expect(requestMethodStub.callCount).to.eql(1);
@@ -252,12 +266,15 @@ describe('bunyan-logstash-http', () => {
         level: 'debug',
       });
 
-      const { requestMethodStub, requestStub } = stubRequest(http, { statusCode: 400 });
+      const { requestMethodStub, requestStub } = stubRequest(http, {
+        statusCode: 400,
+      });
       const logRecord = createBunyanLogRecord({ msg: 'test' });
 
       // Act
       return obj.write(logRecord).catch(() => {
-        const expectedLog = '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
+        const expectedLog =
+          '{"@timestamp":"2020-01-01T12:00:00.000Z","logLevel":"INFO","message":"test","name":"from test","hostname":"test host","pid":-1,"level":30,"time":"2020-01-01T12:00:00.000Z","v":0}';
 
         // Assert
         chai.expect(requestMethodStub.callCount).to.eql(1);

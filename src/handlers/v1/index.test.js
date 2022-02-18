@@ -14,7 +14,9 @@ describe(__filename, () => {
 
   beforeEach(() => {
     sinon.stub(handlerHelpers, 'getIssuer').returns('testIssuer');
-    sinon.stub(handlerHelpers, 'getAppPublicSignature').resolves('publicSignature');
+    sinon
+      .stub(handlerHelpers, 'getAppPublicSignature')
+      .resolves('publicSignature');
     sinon.stub(jwt, 'verify').returns({
       payload: {
         iss: 'testIssuer',
@@ -28,35 +30,41 @@ describe(__filename, () => {
   });
 
   describe('createFunction', () => {
-    it('Fails when missing required headers', () => supertest(app)
-      .post('/v1/create')
-      .send({})
-      .expect('content-type', /text\/plain/)
-      .expect(403)
-      .then((resp) => {
-        chai.expect(resp.text).to.eql('Please include authentication token in header "token"');
-      }));
+    it('Fails when missing required headers', () =>
+      supertest(app)
+        .post('/v1/create')
+        .send({})
+        .expect('content-type', /text\/plain/)
+        .expect(403)
+        .then((resp) => {
+          chai
+            .expect(resp.text)
+            .to.eql('Please include authentication token in header "token"');
+        }));
 
-    it('Fails when missing name in body', () => supertest(app)
-      .post('/v1/create')
-      .send({})
-      .set('token', 'testToken')
-      .expect('content-type', /application\/json/)
-      .expect(400)
-      .then((resp) => {
-        const body = JSON.parse(resp.text);
+    it('Fails when missing name in body', () =>
+      supertest(app)
+        .post('/v1/create')
+        .send({})
+        .set('token', 'testToken')
+        .expect('content-type', /application\/json/)
+        .expect(400)
+        .then((resp) => {
+          const body = JSON.parse(resp.text);
 
-        chai.expect(body).to.eql([{
-          argument: 'name',
-          instance: {},
-          property: 'instance',
-          message: 'requires property "name"',
-          name: 'required',
-          path: [],
-          schema: '/CreateRequest',
-          stack: 'instance requires property "name"',
-        }]);
-      }));
+          chai.expect(body).to.eql([
+            {
+              argument: 'name',
+              instance: {},
+              property: 'instance',
+              message: 'requires property "name"',
+              name: 'required',
+              path: [],
+              schema: '/CreateRequest',
+              stack: 'instance requires property "name"',
+            },
+          ]);
+        }));
 
     describe('when body and headers are proper', () => {
       it('succeeds when function does not already exist', () => {
@@ -66,7 +74,10 @@ describe(__filename, () => {
           insertOne: sinon.stub().resolves(),
         };
         const database = {
-          getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
+          getCollection: sinon
+            .stub()
+            .withArgs('functions')
+            .returns(functionsCol),
           close: sinon.stub(),
         };
         sinon.stub(repo, 'getDatabase').resolves(database);
@@ -82,7 +93,11 @@ describe(__filename, () => {
             const body = JSON.parse(resp.text);
 
             chai.expect(body.orid).to.exist;
-            chai.expect(body.orid).to.match(/^orid:1::::1:sf:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g);
+            chai
+              .expect(body.orid)
+              .to.match(
+                /^orid:1::::1:sf:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
+              );
 
             chai.expect(functionsCol.insertOne.callCount).to.equal(1);
             chai.expect(database.close.callCount).to.equal(1);
@@ -96,7 +111,10 @@ describe(__filename, () => {
           insertOne: sinon.stub().resolves(),
         };
         const database = {
-          getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
+          getCollection: sinon
+            .stub()
+            .withArgs('functions')
+            .returns(functionsCol),
           close: sinon.stub(),
         };
         sinon.stub(repo, 'getDatabase').resolves(database);
@@ -125,11 +143,14 @@ describe(__filename, () => {
       // Arrange
       const functionsCol = {
         find: sinon.stub().returns({
-          toArray: () => Promise.resolve([{
-            id: 'id1',
-            name: 'test1',
-            created: new Date().toISOString(),
-          }]),
+          toArray: () =>
+            Promise.resolve([
+              {
+                id: 'id1',
+                name: 'test1',
+                created: new Date().toISOString(),
+              },
+            ]),
         }),
         insertOne: sinon.stub().resolves(),
       };
@@ -148,10 +169,12 @@ describe(__filename, () => {
         .then((resp) => {
           const body = JSON.parse(resp.text);
 
-          chai.expect(body).to.eql([{
-            name: 'test1',
-            orid: 'orid:1::::1:sf:id1',
-          }]);
+          chai.expect(body).to.eql([
+            {
+              name: 'test1',
+              orid: 'orid:1::::1:sf:id1',
+            },
+          ]);
 
           chai.expect(functionsCol.find.callCount).to.equal(1);
           chai.expect(database.close.callCount).to.equal(1);
@@ -185,14 +208,16 @@ describe(__filename, () => {
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
           chai.expect(functionsCol.deleteOne.callCount).to.equal(1);
-          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([{
-            accountId: '1',
-            id: '12345678-1234-1234-1234-123456789ABC',
-          }]);
-          chai.expect(fakeProvider.deleteFunction.callCount).to.equal(1);
-          chai.expect(fakeProvider.deleteFunction.getCall(0).args).to.deep.equal([
-            '12345678',
+          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([
+            {
+              accountId: '1',
+              id: '12345678-1234-1234-1234-123456789ABC',
+            },
           ]);
+          chai.expect(fakeProvider.deleteFunction.callCount).to.equal(1);
+          chai
+            .expect(fakeProvider.deleteFunction.getCall(0).args)
+            .to.deep.equal(['12345678']);
           chai.expect(database.close.callCount).to.equal(1);
         });
     });
@@ -223,9 +248,9 @@ describe(__filename, () => {
           chai.expect(resp.text).to.equal('');
           chai.expect(functionsCol.deleteOne.callCount).to.equal(0);
           chai.expect(fakeProvider.deleteFunction.callCount).to.equal(1);
-          chai.expect(fakeProvider.deleteFunction.getCall(0).args).to.deep.equal([
-            '12345678',
-          ]);
+          chai
+            .expect(fakeProvider.deleteFunction.getCall(0).args)
+            .to.deep.equal(['12345678']);
           chai.expect(database.close.callCount).to.equal(1);
         });
     });
@@ -252,10 +277,12 @@ describe(__filename, () => {
         .then((resp) => {
           chai.expect(resp.text).to.equal('');
           chai.expect(functionsCol.deleteOne.callCount).to.equal(1);
-          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([{
-            accountId: '1',
-            id: '12345678-1234-1234-1234-123456789ABC',
-          }]);
+          chai.expect(functionsCol.deleteOne.getCall(0).args).to.deep.equal([
+            {
+              accountId: '1',
+              id: '12345678-1234-1234-1234-123456789ABC',
+            },
+          ]);
           chai.expect(database.close.callCount).to.equal(1);
         });
     });
@@ -309,7 +336,9 @@ describe(__filename, () => {
 
         // Act & Assert
         return supertest(app)
-          .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+          .post(
+            '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
           .set('token', 'testToken')
           .field('entryPoint', 'src/main:main')
           .field('runtime', 'node')
@@ -347,7 +376,9 @@ describe(__filename, () => {
 
         // Act & Assert
         return supertest(app)
-          .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+          .post(
+            '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
           .set('token', 'testToken')
           .field('entryPoint', 'src/main:main')
           .field('runtime', 'node')
@@ -385,35 +416,38 @@ describe(__filename, () => {
     });
 
     describe('validators', () => {
-      it('validates post fields', () => supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-        .set('token', 'testToken')
-        .expect(400)
-        .then((resp) => {
-          const errors = JSON.parse(resp.text);
-          chai.expect(errors).to.deep.equal([
-            {
-              argument: 'entryPoint',
-              instance: {},
-              message: 'requires property "entryPoint"',
-              name: 'required',
-              path: [],
-              property: 'instance',
-              schema: '/UploadCodeRequest',
-              stack: 'instance requires property "entryPoint"',
-            },
-            {
-              argument: 'runtime',
-              instance: {},
-              message: 'requires property "runtime"',
-              name: 'required',
-              path: [],
-              property: 'instance',
-              schema: '/UploadCodeRequest',
-              stack: 'instance requires property "runtime"',
-            },
-          ]);
-        }));
+      it('validates post fields', () =>
+        supertest(app)
+          .post(
+            '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
+          .set('token', 'testToken')
+          .expect(400)
+          .then((resp) => {
+            const errors = JSON.parse(resp.text);
+            chai.expect(errors).to.deep.equal([
+              {
+                argument: 'entryPoint',
+                instance: {},
+                message: 'requires property "entryPoint"',
+                name: 'required',
+                path: [],
+                property: 'instance',
+                schema: '/UploadCodeRequest',
+                stack: 'instance requires property "entryPoint"',
+              },
+              {
+                argument: 'runtime',
+                instance: {},
+                message: 'requires property "runtime"',
+                name: 'required',
+                path: [],
+                property: 'instance',
+                schema: '/UploadCodeRequest',
+                stack: 'instance requires property "runtime"',
+              },
+            ]);
+          }));
 
       it('validates post file correct field', () => {
         // Arrange
@@ -421,7 +455,9 @@ describe(__filename, () => {
 
         // Act
         return supertest(app)
-          .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+          .post(
+            '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
           .set('token', 'testToken')
           .field('entryPoint', 'src/main:main')
           .field('runtime', 'node')
@@ -437,20 +473,23 @@ describe(__filename, () => {
           });
       });
 
-      it('validates post file exists', () => supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
-        .set('token', 'testToken')
-        .field('entryPoint', 'src/main:main')
-        .field('runtime', 'node')
-        .expect(400)
-        .then((resp) => {
-          const errors = JSON.parse(resp.text);
-          chai.expect(errors).to.deep.equal([
-            {
-              message: 'sourceArchive missing from payload',
-            },
-          ]);
-        }));
+      it('validates post file exists', () =>
+        supertest(app)
+          .post(
+            '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
+          .set('token', 'testToken')
+          .field('entryPoint', 'src/main:main')
+          .field('runtime', 'node')
+          .expect(400)
+          .then((resp) => {
+            const errors = JSON.parse(resp.text);
+            chai.expect(errors).to.deep.equal([
+              {
+                message: 'sourceArchive missing from payload',
+              },
+            ]);
+          }));
     });
 
     it('fails when attempting to create application in provider fails', () => {
@@ -475,7 +514,9 @@ describe(__filename, () => {
 
       // Act & Assert
       return supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+        .post(
+          '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+        )
         .set('token', 'testToken')
         .field('entryPoint', 'src/main:main')
         .field('runtime', 'node')
@@ -504,7 +545,9 @@ describe(__filename, () => {
 
       // Act
       return supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+        .post(
+          '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+        )
         .set('token', 'testToken')
         .field('entryPoint', 'src/main:main')
         .field('runtime', 'node')
@@ -534,7 +577,9 @@ describe(__filename, () => {
 
       // Act
       return supertest(app)
-        .post('/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+        .post(
+          '/v1/uploadCode/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+        )
         .set('token', 'testToken')
         .field('entryPoint', 'src/main:main')
         .field('runtime', 'node')
@@ -557,9 +602,7 @@ describe(__filename, () => {
       };
       const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub()
-          .withArgs('functions')
-          .returns(functionsCol),
+        getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
       };
       const provider = {
         invokeFunction: sinon.stub().resolves({
@@ -581,10 +624,9 @@ describe(__filename, () => {
             result: true,
           });
           chai.expect(provider.invokeFunction.callCount).to.equal(1);
-          chai.expect(provider.invokeFunction.getCall(0).args).to.deep.equal([
-            '12345678',
-            { test: 'input' },
-          ]);
+          chai
+            .expect(provider.invokeFunction.getCall(0).args)
+            .to.deep.equal(['12345678', { test: 'input' }]);
         });
     });
 
@@ -598,9 +640,7 @@ describe(__filename, () => {
       };
       const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub()
-          .withArgs('functions')
-          .returns(functionsCol),
+        getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
       };
       const provider = {
         invokeFunction: sinon.stub().resolves({
@@ -612,7 +652,9 @@ describe(__filename, () => {
 
       // Act
       return supertest(app)
-        .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC?async=true')
+        .post(
+          '/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC?async=true',
+        )
         .set('token', 'testToken')
         .send({ test: 'input' })
         .expect(202)
@@ -622,10 +664,9 @@ describe(__filename, () => {
             message: 'Request accepted. Function should begin soon.',
           });
           chai.expect(provider.invokeFunction.callCount).to.equal(1);
-          chai.expect(provider.invokeFunction.getCall(0).args).to.deep.equal([
-            '12345678',
-            { test: 'input' },
-          ]);
+          chai
+            .expect(provider.invokeFunction.getCall(0).args)
+            .to.deep.equal(['12345678', { test: 'input' }]);
         });
     });
 
@@ -638,7 +679,8 @@ describe(__filename, () => {
         };
         const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub()
+          getCollection: sinon
+            .stub()
             .withArgs('functions')
             .returns(functionsCol),
         };
@@ -650,7 +692,9 @@ describe(__filename, () => {
 
         // Act
         return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+          .post(
+            '/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
           .set('token', 'testToken')
           .send({ test: 'input' })
           .expect(404)
@@ -672,7 +716,8 @@ describe(__filename, () => {
         };
         const database = {
           close: sinon.stub(),
-          getCollection: sinon.stub()
+          getCollection: sinon
+            .stub()
             .withArgs('functions')
             .returns(functionsCol),
         };
@@ -684,7 +729,9 @@ describe(__filename, () => {
 
         // Act
         return supertest(app)
-          .post('/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC')
+          .post(
+            '/v1/invoke/orid:1::::1:sf:12345678-1234-1234-1234-123456789ABC',
+          )
           .set('token', 'testToken')
           .send({ test: 'input' })
           .expect(422)
@@ -692,7 +739,8 @@ describe(__filename, () => {
             const data = JSON.parse(resp.text);
             chai.expect(data).to.deep.equal({
               id: '12345678-1234-1234-1234-123456789ABC',
-              message: 'Function does not appear to have code associated yet. Please upload code then try again.',
+              message:
+                'Function does not appear to have code associated yet. Please upload code then try again.',
             });
             chai.expect(provider.invokeFunction.callCount).to.equal(0);
           });
@@ -718,9 +766,7 @@ describe(__filename, () => {
       };
       const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub()
-          .withArgs('functions')
-          .returns(functionsCol),
+        getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
       };
       sinon.stub(repo, 'getDatabase').resolves(database);
 
@@ -751,9 +797,7 @@ describe(__filename, () => {
       };
       const database = {
         close: sinon.stub(),
-        getCollection: sinon.stub()
-          .withArgs('functions')
-          .returns(functionsCol),
+        getCollection: sinon.stub().withArgs('functions').returns(functionsCol),
       };
       sinon.stub(repo, 'getDatabase').resolves(database);
 

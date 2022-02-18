@@ -1,0 +1,4 @@
+# YAML format
+semi: true
+singleQuote: true
+trailingComma: all
