@@ -1,5 +1,12 @@
 node_modules/
-docs/
 coverage/
 logs/
+old-src/
+bin/
+.idea/
+.vscode/
+.nyc_output/
+dist/
 *.log
+__tests__/
+__test__/
