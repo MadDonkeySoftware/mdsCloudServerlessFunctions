@@ -1,4 +1,3 @@
-import { FastifyRequest } from 'fastify';
 import { rm } from 'fs/promises';
 import { type FastifyMulterFileRequest } from '../types/fastify-multer-file';
 
