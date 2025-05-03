@@ -1,0 +1,23 @@
+{
+  // https://www.typescriptlang.org/docs/handbook/migrating-from-javascript.html
+  "extends": "@tsconfig/node16/tsconfig.json",
+  "ts-node": {
+    "files": true,
+  },
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "esModuleInterop": true, // for node config
+
+    "module": "Node16",
+    "moduleResolution": "Node16",
+
+    // Disable later
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  },
+  "include": [ "./src/**/*" ]
+}
