@@ -33,7 +33,6 @@
     "@sinclair/typebox": "^0.29.6",
     "awilix": "^8.0.1",
     "axios": "^1.4.0",
-    "build-url": "^6.0.1",
     "bunyan": "^1.8.15",
     "config": "^3.3.9",
     "fastify": "^4.20.0",
