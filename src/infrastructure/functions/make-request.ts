@@ -13,7 +13,7 @@ export async function makeRequest({
   logger,
   delayFunc,
 }: {
-  url: string;
+  url: string | URL;
   body?: any;
   headers?: Record<string, string>;
   httpVerb: string;
@@ -52,13 +52,13 @@ export async function makeRequest({
   try {
     switch (httpVerb.toUpperCase()) {
       case 'GET':
-        resp = await axios.get(url, requestOptions);
+        resp = await axios.get(url.toString(), requestOptions);
         break;
       case 'POST':
-        resp = await axios.post(url, body, requestOptions);
+        resp = await axios.post(url.toString(), body, requestOptions);
         break;
       case 'DELETE':
-        resp = await axios.delete(url, requestOptions);
+        resp = await axios.delete(url.toString(), requestOptions);
         break;
       default:
         throwUnknownVerb = true;

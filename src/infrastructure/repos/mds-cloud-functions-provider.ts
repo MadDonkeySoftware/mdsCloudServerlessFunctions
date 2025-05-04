@@ -3,7 +3,6 @@ import {
   FunctionsProvider,
 } from '../../core/interfaces/functions-provider';
 import { BaseLogger } from 'pino';
-import buildUrl from 'build-url';
 import FormData from 'form-data';
 import { createReadStream } from 'fs';
 
@@ -45,7 +44,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
     const headers = {
       token,
     };
-    const url = buildUrl(this.#baseUrl, { path: '/v1/createFunction' });
+    const url = new URL('/v1/createFunction', this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
@@ -70,7 +69,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
 
   async deleteFunction({ id }: { id: string }): Promise<boolean> {
     const token = await this.#authManager.getAuthenticationToken();
-    const url = buildUrl(this.#baseUrl, { path: `/v1/${id}` });
+    const url = new URL(`/v1/${id}`, this.#baseUrl);
     const response = await makeRequest({
       url,
       httpVerb: 'DELETE',
@@ -103,7 +102,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
     payload: string;
   }): Promise<FunctionInvokeResult | undefined> {
     const token = await this.#authManager.getAuthenticationToken();
-    const url = buildUrl(this.#baseUrl, { path: `/v1/executeFunction/${id}` });
+    const url = new URL(`/v1/executeFunction/${id}`, this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
@@ -157,7 +156,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
       token,
     };
 
-    const url = buildUrl(this.#baseUrl, { path: '/v1/buildFunction' });
+    const url = new URL('/v1/buildFunction', this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
