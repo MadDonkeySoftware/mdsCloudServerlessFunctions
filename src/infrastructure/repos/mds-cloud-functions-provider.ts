@@ -44,7 +44,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
     const headers = {
       token,
     };
-    const url = new URL('/vi/createFunction', this.#baseUrl);
+    const url = new URL('/v1/createFunction', this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
@@ -69,7 +69,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
 
   async deleteFunction({ id }: { id: string }): Promise<boolean> {
     const token = await this.#authManager.getAuthenticationToken();
-    const url = new URL(`/vi/${id}`, this.#baseUrl);
+    const url = new URL(`/v1/${id}`, this.#baseUrl);
     const response = await makeRequest({
       url,
       httpVerb: 'DELETE',
@@ -102,7 +102,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
     payload: string;
   }): Promise<FunctionInvokeResult | undefined> {
     const token = await this.#authManager.getAuthenticationToken();
-    const url = new URL(`/vi/executeFunction/${id}`, this.#baseUrl);
+    const url = new URL(`/v1/executeFunction/${id}`, this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
@@ -156,7 +156,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
       token,
     };
 
-    const url = new URL(`/vi/buildFunction`, this.#baseUrl);
+    const url = new URL(`/v1/buildFunction`, this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
