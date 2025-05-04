@@ -156,7 +156,7 @@ export class MdsCloudFunctionsProvider implements FunctionsProvider {
       token,
     };
 
-    const url = new URL(`/v1/buildFunction`, this.#baseUrl);
+    const url = new URL('/v1/buildFunction', this.#baseUrl);
     const response = await makeRequest({
       logger: this.#logger,
       url,
