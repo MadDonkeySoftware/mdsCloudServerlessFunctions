@@ -30,7 +30,7 @@
     "@fastify/type-provider-typebox": "^3.3.0",
     "@maddonkeysoftware/mds-cloud-sdk-node": "^0.2.9",
     "@maddonkeysoftware/orid-node": "^0.1.2",
-    "@sinclair/typebox": "^0.29.6",
+    "@sinclair/typebox": "^0.34.0",
     "awilix": "^8.0.1",
     "axios": "^1.4.0",
     "bunyan": "^1.8.15",
