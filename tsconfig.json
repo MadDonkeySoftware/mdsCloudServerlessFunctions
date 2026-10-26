@@ -1,6 +1,6 @@
 {
   // https://www.typescriptlang.org/docs/handbook/migrating-from-javascript.html
-  "extends": "@tsconfig/node16/tsconfig.json",
+  "extends": "@tsconfig/node18/tsconfig.json",
   "ts-node": {
     "files": true,
   },
